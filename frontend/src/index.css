@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Brand: deep teal. Easy to re-skin — change the HSL triples below in the
+ * :root and .dark blocks (`--primary`, `--accent-strong`, hero gradient
+ * stops) and the whole UI re-tones. Hue 188 is far enough from the typical
+ * real-estate green-600 / blue-600 to feel distinct without being weird.
+ */
+@layer base {
+  :root {
+    --background: 200 25% 98%;
+    --foreground: 200 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 30% 10%;
+
+    --primary: 188 75% 28%;
+    --primary-foreground: 200 25% 98%;
+
+    --secondary: 188 18% 93%;
+    --secondary-foreground: 200 30% 15%;
+
+    --muted: 200 14% 92%;
+    --muted-foreground: 200 10% 42%;
+
+    --accent: 188 18% 91%;
+    --accent-foreground: 200 30% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 14% 88%;
+    --input: 200 14% 88%;
+    --ring: 188 75% 28%;
+
+    --radius: 0.625rem;
+
+    --input-bg: 188 22% 96%;
+    --input-border-idle: 200 14% 88%;
+    --input-border-focus: 188 75% 32%;
+    --accent-strong: 188 70% 32%;
+
+    --success-bg: 152 35% 92%;
+    --success-fg: 152 60% 22%;
+    --warning-bg: 38 92% 92%;
+    --warning-fg: 30 70% 35%;
+    --info-bg: 210 60% 94%;
+    --info-fg: 215 60% 35%;
+
+    --sheet-bg: 0 0% 100%;
+    --section-border: 200 14% 88%;
+  }
+
+  .dark {
+    --background: 200 30% 7%;
+    --foreground: 188 15% 95%;
+
+    --card: 200 25% 10%;
+    --card-foreground: 188 15% 95%;
+
+    --popover: 200 25% 10%;
+    --popover-foreground: 188 15% 95%;
+
+    --primary: 188 65% 45%;
+    --primary-foreground: 200 30% 7%;
+
+    --secondary: 200 18% 14%;
+    --secondary-foreground: 188 15% 95%;
+
+    --muted: 200 14% 14%;
+    --muted-foreground: 188 10% 55%;
+
+    --accent: 200 18% 16%;
+    --accent-foreground: 188 15% 95%;
+
+    --destructive: 0 63% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 14% 18%;
+    --input: 200 14% 18%;
+    --ring: 188 65% 45%;
+
+    --input-bg: 200 18% 16%;
+    --input-border-idle: 200 14% 22%;
+    --input-border-focus: 188 60% 55%;
+    --accent-strong: 188 60% 60%;
+
+    --success-bg: 152 55% 55% / 0.16;
+    --success-fg: 152 55% 65%;
+    --warning-bg: 38 90% 60% / 0.18;
+    --warning-fg: 38 90% 70%;
+    --info-bg: 210 60% 60% / 0.18;
+    --info-fg: 210 60% 75%;
+
+    --sheet-bg: 200 18% 14%;
+    --section-border: 200 12% 28%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  /*
+   * Reserve a slot for the vertical scrollbar so locking body scroll on
+   * modal open doesn't shift the page sideways.
+   */
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5 {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * Brand hero gradient — teal diagonal. Light + dark variants so the brand
+   * still reads against either background without blowing out white text.
+   */
+  .hero-gradient {
+    background: linear-gradient(
+      155deg,
+      hsl(188 75% 18%) 0%,
+      hsl(188 65% 26%) 50%,
+      hsl(195 55% 36%) 100%
+    );
+  }
+  .dark .hero-gradient {
+    background: linear-gradient(
+      155deg,
+      hsl(188 70% 10%) 0%,
+      hsl(188 60% 18%) 50%,
+      hsl(195 50% 26%) 100%
+    );
+  }
+}
