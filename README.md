@@ -14,7 +14,7 @@ and keeps full control with the parties.
 | Database | MongoDB Atlas (2dsphere indexed for radius search)     |
 | Storage  | Cloudflare R2 (S3-compatible, presigned-PUT uploads)   |
 | Hosting  | Vercel (frontend + backend, two separate projects)     |
-| Maps     | Google Maps API (post-MVP — listings have geo today)   |
+| Maps     | Google Maps API (autocomplete + pin-drop on listing form) |
 
 Same monorepo layout as `VinScan` and `PoultryManager`: `frontend/` and
 `backend/` deploy as two independent Vercel projects.
@@ -63,9 +63,23 @@ noBrokers/
 
 Out of scope (deliberately deferred):
 
-- Map view (data is already geo-indexed — pipe Google Maps in later)
+- Map view on the browse page (listings are already geo-indexed)
 - MyDigitalID national e-verification (admin manually reviews KYC for now)
 - Auto-generated OTR / tenancy agreement PDFs
+
+## Google Maps setup
+
+The "List a property" form (`/dashboard/listings/new`) uses Google Maps for
+address autocomplete and pin-drop selection. To enable it:
+
+1. In Google Cloud Console, enable **Maps JavaScript API**, **Places API**,
+   and **Geocoding API** on a project with billing.
+2. Create an API key and restrict it to your Vercel domain(s) + localhost.
+3. Add `VITE_GOOGLE_MAPS_API_KEY=...` to `frontend/.env` (and to the
+   frontend Vercel project's env vars).
+
+Without a key the form falls back to plain text inputs — the backend still
+accepts manually entered addresses and lat/lng.
 
 ## Quick start
 

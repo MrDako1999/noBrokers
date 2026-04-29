@@ -12,11 +12,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import MultiImageUpload, { MultiDocumentUpload } from '@/components/MultiImageUpload';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 import {
   PROPERTY_TYPES,
   FURNISHING_OPTIONS,
   COMMON_AMENITIES,
-  MY_STATES,
 } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -44,14 +44,23 @@ const empty = {
   amenities: [],
   images: [],
   ownershipDocuments: [],
-  location: { address: '', city: '', state: '', postcode: '', country: 'Malaysia', lat: '', lng: '' },
+  location: {
+    address: '',
+    city: '',
+    state: '',
+    postcode: '',
+    country: 'Malaysia',
+    formattedAddress: '',
+    placeId: '',
+    lat: null,
+    lng: null,
+  },
 };
 
 export default function ListingForm({ initial, onSubmit, submitting, mode = 'create' }) {
   const [form, setForm] = useState(() => ({ ...empty, ...initial, location: { ...empty.location, ...(initial?.location || {}) } }));
 
   const update = (patch) => setForm((p) => ({ ...p, ...patch }));
-  const updateLocation = (patch) => setForm((p) => ({ ...p, location: { ...p.location, ...patch } }));
 
   const toggleAmenity = (a) => {
     setForm((p) =>
@@ -75,8 +84,14 @@ export default function ListingForm({ initial, onSubmit, submitting, mode = 'cre
       sqft: Number(form.sqft) || 0,
       location: {
         ...form.location,
-        lat: form.location.lat === '' ? undefined : Number(form.location.lat),
-        lng: form.location.lng === '' ? undefined : Number(form.location.lng),
+        lat:
+          form.location.lat === '' || form.location.lat == null
+            ? undefined
+            : Number(form.location.lat),
+        lng:
+          form.location.lng === '' || form.location.lng == null
+            ? undefined
+            : Number(form.location.lng),
       },
       publish: !!publish,
     };
@@ -181,58 +196,14 @@ export default function ListingForm({ initial, onSubmit, submitting, mode = 'cre
         </div>
       </Section>
 
-      <Section title="Location">
-        <Field label="Street address">
-          <Input
-            placeholder="e.g. Jalan Kiara 1, Mont Kiara"
-            value={form.location.address}
-            onChange={(e) => updateLocation({ address: e.target.value })}
-          />
-        </Field>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="City">
-            <Input
-              value={form.location.city}
-              onChange={(e) => updateLocation({ city: e.target.value })}
-              required
-            />
-          </Field>
-          <Field label="State">
-            <Select value={form.location.state} onValueChange={(v) => updateLocation({ state: v })}>
-              <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
-              <SelectContent>
-                {MY_STATES.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Postcode">
-            <Input
-              value={form.location.postcode}
-              onChange={(e) => updateLocation({ postcode: e.target.value })}
-            />
-          </Field>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Latitude (optional)" hint="Enables radius search and map view">
-            <Input
-              type="number"
-              step="any"
-              value={form.location.lat}
-              onChange={(e) => updateLocation({ lat: e.target.value })}
-            />
-          </Field>
-          <Field label="Longitude (optional)">
-            <Input
-              type="number"
-              step="any"
-              value={form.location.lng}
-              onChange={(e) => updateLocation({ lng: e.target.value })}
-            />
-          </Field>
-        </div>
+      <Section
+        title="Location"
+        subtitle="Search for the property on the map. The address fields fill in automatically — buyers can also search by radius around your pin."
+      >
+        <AddressAutocomplete
+          value={form.location}
+          onChange={(loc) => setForm((p) => ({ ...p, location: { ...p.location, ...loc } }))}
+        />
       </Section>
 
       <Section title="Photos" subtitle="The first image is the cover. Drag-to-reorder coming soon.">

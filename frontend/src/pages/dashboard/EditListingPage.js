@@ -47,8 +47,8 @@ export default function EditListingPage() {
     ownershipDocuments: data.listing.verification?.documents || [],
     location: {
       ...data.listing.location,
-      lat: data.listing.location?.geo?.coordinates?.[1] ?? '',
-      lng: data.listing.location?.geo?.coordinates?.[0] ?? '',
+      lat: data.listing.location?.geo?.coordinates?.[1] ?? null,
+      lng: data.listing.location?.geo?.coordinates?.[0] ?? null,
     },
   };
 
