@@ -10,7 +10,7 @@ export default function SearchAsIMoveToggle({ checked, onChange, isFetching }) {
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange?.(e.target.checked)}
-          className="h-3.5 w-3.5 cursor-pointer accent-[#f97316]"
+          className="h-3.5 w-3.5 cursor-pointer accent-primary"
         />
         Search as I move the map
         {isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}

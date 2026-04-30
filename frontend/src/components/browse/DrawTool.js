@@ -2,6 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DrawingManagerF, useGoogleMap } from '@react-google-maps/api';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BRAND_TEAL } from './mapColors';
+
+const POLYGON_STYLE = {
+  strokeColor: BRAND_TEAL,
+  strokeWeight: 2,
+  fillColor: BRAND_TEAL,
+  fillOpacity: 0.15,
+  clickable: false,
+  editable: false,
+};
 
 // "Draw" tool — toggles google.maps.drawing.DrawingManager into POLYGON mode
 // then serialises the drawn vertices into the `polygon` URL param. The
@@ -37,15 +47,7 @@ export default function DrawTool({ polygonString, onPolygonChange }) {
       })
       .filter(Boolean);
     if (path.length < 3) return;
-    const poly = new window.google.maps.Polygon({
-      paths: path,
-      strokeColor: '#f97316',
-      strokeWeight: 2,
-      fillColor: '#f97316',
-      fillOpacity: 0.15,
-      clickable: false,
-      editable: false,
-    });
+    const poly = new window.google.maps.Polygon({ paths: path, ...POLYGON_STYLE });
     poly.setMap(map);
     drawnRef.current = poly;
   }, [map, polygonString]);
@@ -54,14 +56,7 @@ export default function DrawTool({ polygonString, onPolygonChange }) {
     (polygon) => {
       clearShape();
       drawnRef.current = polygon;
-      polygon.setOptions({
-        strokeColor: '#f97316',
-        strokeWeight: 2,
-        fillColor: '#f97316',
-        fillOpacity: 0.15,
-        clickable: false,
-        editable: false,
-      });
+      polygon.setOptions(POLYGON_STYLE);
       const path = polygon
         .getPath()
         .getArray()
@@ -75,14 +70,7 @@ export default function DrawTool({ polygonString, onPolygonChange }) {
   const drawingOptions = {
     drawingControl: false,
     drawingMode: isDrawing ? window.google?.maps?.drawing?.OverlayType?.POLYGON : null,
-    polygonOptions: {
-      strokeColor: '#f97316',
-      strokeWeight: 2,
-      fillColor: '#f97316',
-      fillOpacity: 0.15,
-      clickable: false,
-      editable: false,
-    },
+    polygonOptions: POLYGON_STYLE,
   };
 
   return (

@@ -1,11 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap } from '@react-google-maps/api';
 import { Loader2, MapPin } from 'lucide-react';
 import { MY_CENTER, useGoogleMaps } from '@/lib/googleMapsUtils';
 import MarkerCluster from './MarkerCluster';
 import MarkerPopupCard from './MarkerPopupCard';
+import MultiUnitPopupCard from './MultiUnitPopupCard';
+import { findGroupContaining, groupListings } from './groupListings';
 
 const containerStyle = { width: '100%', height: '100%' };
+
+// Hide Google's default POI / transit / business icons — they look almost
+// identical to our orange price bubbles and create visual clutter that the
+// user mistakes for their own listings. Roads, water, and admin labels stay.
+const HIDE_POI_STYLES = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.attraction', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.medical', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.sports_complex', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.place_of_worship', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit.station', stylers: [{ visibility: 'off' }] },
+];
 
 const MAP_OPTIONS = {
   streetViewControl: false,
@@ -14,6 +31,7 @@ const MAP_OPTIONS = {
   zoomControl: true,
   clickableIcons: false,
   gestureHandling: 'greedy',
+  styles: HIDE_POI_STYLES,
 };
 
 // Hosts the Google Map + the marker layer + the marker popup card. The parent
@@ -68,11 +86,15 @@ export default function ListingMap({
       }
       if (added > 0) {
         map.fitBounds(bounds, 64);
-        if (added === 1) {
-          // Don't zoom too tight on a single result.
+        // After fitBounds the zoom can be either too tight (single marker) or
+        // too loose (markers spread across the country). Clamp to a band that
+        // still shows individual price bubbles instead of just clusters.
+        window.requestAnimationFrame(() => {
           const z = map.getZoom();
-          if (z && z > 15) map.setZoom(15);
-        }
+          if (z == null) return;
+          if (added === 1 && z > 15) map.setZoom(15);
+          if (z < 11) map.setZoom(11);
+        });
         didFitRef.current = true;
       }
     }
@@ -93,9 +115,37 @@ export default function ListingMap({
     });
   }, [map, onIdle]);
 
-  const focusedListing = focusedId
-    ? listings.find((l) => l._id === focusedId)
-    : null;
+  // Group listings by address — same lat/lng = same building, so we can
+  // collapse multi-unit buildings into a single map marker.
+  const groups = useMemo(() => groupListings(listings), [listings]);
+
+  // Resolve hover/focus IDs into "what should the popup show" — either a
+  // single listing card, a multi-unit (carousel) card, or nothing. The id
+  // convention is: `multi:<groupKey>` for grouped pins, raw `_id` otherwise.
+  const resolvePopup = useCallback(
+    (id) => {
+      if (!id) return null;
+      if (id.startsWith('multi:')) {
+        const key = id.slice('multi:'.length);
+        const group = groups.find((g) => g.key === key);
+        return group ? { kind: 'group', group } : null;
+      }
+      const single = listings.find((l) => l._id === id);
+      if (!single) return null;
+      const owningGroup = findGroupContaining(groups, id);
+      // Single listing inside a multi-unit building -> show the multi-unit
+      // card so the user sees its siblings, not just the one row.
+      if (owningGroup && owningGroup.listings.length > 1) {
+        return { kind: 'group', group: owningGroup };
+      }
+      return { kind: 'single', listing: single };
+    },
+    [groups, listings],
+  );
+
+  const focusedPopup = resolvePopup(focusedId);
+  const hoveredPopup =
+    hoveredId && hoveredId !== focusedId ? resolvePopup(hoveredId) : null;
 
   if (!apiKey) {
     return (
@@ -141,14 +191,31 @@ export default function ListingMap({
       onClick={() => onSelect?.(null)}
     >
       <MarkerCluster
-        listings={listings}
+        groups={groups}
         hoveredId={hoveredId}
         focusedId={focusedId}
         onHover={onHover}
         onSelect={onSelect}
       />
-      {focusedListing && (
-        <MarkerPopupCard listing={focusedListing} onClose={() => onSelect?.(null)} />
+      {focusedPopup?.kind === 'single' && (
+        <MarkerPopupCard
+          listing={focusedPopup.listing}
+          variant="focus"
+          onClose={() => onSelect?.(null)}
+        />
+      )}
+      {focusedPopup?.kind === 'group' && (
+        <MultiUnitPopupCard
+          group={focusedPopup.group}
+          variant="focus"
+          onClose={() => onSelect?.(null)}
+        />
+      )}
+      {!focusedPopup && hoveredPopup?.kind === 'single' && (
+        <MarkerPopupCard listing={hoveredPopup.listing} variant="hover" />
+      )}
+      {!focusedPopup && hoveredPopup?.kind === 'group' && (
+        <MultiUnitPopupCard group={hoveredPopup.group} variant="hover" />
       )}
       {children}
     </GoogleMap>

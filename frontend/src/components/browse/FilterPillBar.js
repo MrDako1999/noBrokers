@@ -231,7 +231,7 @@ export default function FilterPillBar({
           type="button"
           size="sm"
           onClick={onSaveSearch}
-          className="bg-[#f97316] text-white hover:bg-[#ea580c]"
+          className="bg-primary text-primary-foreground hover:bg-foreground"
         >
           <BookmarkPlus className="mr-1.5 h-4 w-4" />
           Save search

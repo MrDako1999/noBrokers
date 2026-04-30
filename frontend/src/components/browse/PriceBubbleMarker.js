@@ -6,11 +6,21 @@ import { formatPriceShort, formatRentShort } from '@/lib/format';
 // Google's default offset puts the overlay's top-left at the coordinate.
 const offsetByCenter = (w, h) => ({ x: -(w / 2), y: -(h / 2) });
 
-// Spitogatos-style orange price pill rendered as an HTML overlay so we can
-// hover/click it like a normal DOM element. Z-index gets bumped when hovered
-// or focused so an active marker always wins over its neighbours.
+// Zoom tiers — Spitogatos shows tiny dots when far out, mid-size pills with
+// no price between, and full price pills once you're close enough that the
+// label is meaningful. We bias toward showing the price as soon as we can:
+// users want to compare prices, and the dot-only state is mostly for very
+// far-zoom-out where labels would overlap.
+//
+//   <= TIER_DOT_MAX     -> small filled dot (no text)
+//   <= TIER_PILL_MAX    -> compact pill, price hidden until hover
+//   >  TIER_PILL_MAX    -> full price pill
+const TIER_DOT_MAX = 9;
+const TIER_PILL_MAX = 11;
+
 export default function PriceBubbleMarker({
   listing,
+  zoom = 14,
   hovered,
   focused,
   onHover,
@@ -24,6 +34,14 @@ export default function PriceBubbleMarker({
   const label = isSale
     ? formatPriceShort(listing.price)
     : formatRentShort(listing.monthlyRent);
+
+  const tier = focused || hovered
+    ? 'full' // always show the price for the active marker
+    : zoom <= TIER_DOT_MAX
+      ? 'dot'
+      : zoom <= TIER_PILL_MAX
+        ? 'mini'
+        : 'full';
 
   return (
     <OverlayViewF
@@ -41,16 +59,30 @@ export default function PriceBubbleMarker({
           onSelect?.(listing._id);
         }}
         className={cn(
-          'whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold leading-none shadow-md transition-all',
-          'border border-transparent select-none cursor-pointer',
-          focused
-            ? 'bg-foreground text-background scale-110 ring-2 ring-primary'
-            : hovered
-              ? 'bg-primary text-primary-foreground scale-105'
-              : 'bg-[#f97316] text-white hover:bg-[#ea580c]',
+          'select-none cursor-pointer whitespace-nowrap font-semibold leading-none transition-all duration-150',
+          tier === 'dot' &&
+            'h-2.5 w-2.5 rounded-full p-0 shadow-sm ring-2 ring-white/80 bg-primary',
+          tier === 'mini' &&
+            'h-3 w-3 rounded-full p-0 shadow ring-2 ring-white bg-primary',
+          tier === 'full' &&
+            'rounded-full border border-black/5 px-2.5 py-1 text-[11px] shadow-md',
+          // Color states for the pill tier
+          tier === 'full' &&
+            (focused
+              ? 'bg-foreground text-background scale-110 ring-2 ring-primary'
+              : hovered
+                ? 'bg-foreground text-background scale-110 shadow-lg'
+                : 'bg-primary text-primary-foreground hover:bg-foreground'),
+          // Color states for dot/mini (just brighten on hover/focus)
+          (tier === 'dot' || tier === 'mini') &&
+            (focused
+              ? 'scale-125 ring-foreground'
+              : hovered
+                ? 'scale-125 shadow-lg'
+                : ''),
         )}
       >
-        {label}
+        {tier === 'full' ? label : null}
       </button>
     </OverlayViewF>
   );
