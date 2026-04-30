@@ -1,7 +1,25 @@
-// Google Maps helpers shared across PlacesSearchInput + AddressAutocomplete.
-// Centred on Kuala Lumpur because noBrokers is Malaysia-only today.
+import { useJsApiLoader } from '@react-google-maps/api';
+
+// Google Maps helpers shared across PlacesSearchInput + AddressAutocomplete +
+// the browse map. Centred on Kuala Lumpur because noBrokers is Malaysia-only.
 
 export const MY_CENTER = { lat: 3.139, lng: 101.6869 };
+
+// One canonical libraries array for the whole app. Different `libraries`
+// arrays cause `useJsApiLoader` to log a "loaded with different libraries"
+// warning and re-load the script, so every consumer must import this constant.
+export const MAPS_LIBRARIES = ['places', 'drawing'];
+
+// Shared script loader. Wraps useJsApiLoader so callers can't accidentally
+// pass a different api key or library set.
+export function useGoogleMaps() {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: apiKey || '',
+    libraries: MAPS_LIBRARIES,
+  });
+  return { isLoaded, loadError, apiKey };
+}
 
 export const COORD_RE = /^\s*(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)\s*$/;
 

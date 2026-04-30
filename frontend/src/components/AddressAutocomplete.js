@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  GoogleMap,
-  useJsApiLoader,
-  MarkerF,
-} from '@react-google-maps/api';
+import { GoogleMap, MarkerF } from '@react-google-maps/api';
 import {
   Dialog,
   DialogContent,
@@ -28,10 +24,9 @@ import {
   EMPTY_ADDRESS,
   extractAddressComponents,
   ensurePacHidden,
+  useGoogleMaps,
 } from '@/lib/googleMapsUtils';
 import { MY_STATES } from '@/lib/constants';
-
-const libraries = ['places'];
 
 const inlineMapStyle = {
   width: '100%',
@@ -226,12 +221,7 @@ export default function AddressAutocomplete({ value, onChange, disabled }) {
   const [searchValue, setSearchValue] = useState('');
   const [expanded, setExpanded] = useState(false);
 
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey || '',
-    libraries,
-  });
+  const { isLoaded, loadError, apiKey } = useGoogleMaps();
 
   const addr = value || EMPTY_ADDRESS;
 

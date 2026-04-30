@@ -54,7 +54,8 @@ noBrokers/
 - KYC verification submission (IC / passport / utility) — admin reviews
 - List a property (sale or rent) — admin verifies ownership docs
 - Browse listings with filters: type, location, price range, beds, baths,
-  property type, furnished, sqft, **and radius search around a point**
+  property type, furnished, sqft, **radius search**, **viewport bbox
+  ("search as I move the map")**, and **user-drawn polygon search**
 - Listing detail page with image gallery
 - Watchlist (add / remove / view)
 - Submit purchase offers and rent offers — back-and-forth negotiation thread
@@ -63,23 +64,33 @@ noBrokers/
 
 Out of scope (deliberately deferred):
 
-- Map view on the browse page (listings are already geo-indexed)
+- Saved-searches persistence + email/push alerts (UI hook lives on the
+  browse pill bar; backend collection is the next PR)
 - MyDigitalID national e-verification (admin manually reviews KYC for now)
 - Auto-generated OTR / tenancy agreement PDFs
 
 ## Google Maps setup
 
-The "List a property" form (`/dashboard/listings/new`) uses Google Maps for
-address autocomplete and pin-drop selection. To enable it:
+Google Maps powers two features:
+
+- **List a property** (`/dashboard/listings/new`) — address autocomplete +
+  pin-drop selection.
+- **Browse** (`/buy`, `/rent`) — sticky split-pane map with clustered price
+  bubbles, "Search as I move", and a polygon "Draw" tool.
+
+To enable:
 
 1. In Google Cloud Console, enable **Maps JavaScript API**, **Places API**,
-   and **Geocoding API** on a project with billing.
+   **Geocoding API**, and **Drawing Library** on a project with billing.
+   (Drawing Library has no separate enable step — it ships with Maps JS,
+   you just need to load it via `libraries=drawing`, which we do.)
 2. Create an API key and restrict it to your Vercel domain(s) + localhost.
 3. Add `VITE_GOOGLE_MAPS_API_KEY=...` to `frontend/.env` (and to the
    frontend Vercel project's env vars).
 
-Without a key the form falls back to plain text inputs — the backend still
-accepts manually entered addresses and lat/lng.
+Without a key the listing form falls back to plain text inputs and the
+browse map shows a placeholder; the backend still accepts manually entered
+addresses, the list still renders, and the API still serves results.
 
 ## Quick start
 

@@ -62,6 +62,9 @@ function buildListingPayload(body, owner) {
 //   state         = exact match (case-insensitive)
 //   q             = free-text search
 //   lat, lng, radiusKm  — radius search around point
+//   bbox          = swLng,swLat,neLng,neLat  — viewport "search as I move"
+//   polygon       = lng1,lat1;lng2,lat2;...  — user-drawn area on the map
+//   fields        = 'map' — lean payload + bumped limit (250) for marker layer
 //   sort          = 'newest' | 'price-asc' | 'price-desc'
 //   page, limit
 router.get('/', optionalAuth, async (req, res, next) => {
@@ -84,11 +87,20 @@ router.get('/', optionalAuth, async (req, res, next) => {
       lat,
       lng,
       radiusKm,
+      bbox,
+      polygon,
+      fields,
       sort = 'newest',
     } = req.query
 
+    const isMap = fields === 'map'
+    const maxLimit = isMap ? 250 : 50
+    const defaultLimit = isMap ? 250 : 20
     const page = Math.max(1, parseInt(req.query.page, 10) || 1)
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20))
+    const limit = Math.min(
+      maxLimit,
+      Math.max(1, parseInt(req.query.limit, 10) || defaultLimit),
+    )
     const skip = (page - 1) * limit
 
     const filter = { status: 'active' }
@@ -122,8 +134,22 @@ router.get('/', optionalAuth, async (req, res, next) => {
     if (state) filter['location.state'] = new RegExp(`^${escapeRegExp(state)}$`, 'i')
     if (q) filter.$text = { $search: String(q) }
 
-    // Radius search via $geoWithin / $centerSphere. Earth radius ≈ 6378.1 km.
-    if (lat && lng && radiusKm) {
+    // Geo filters. Polygon wins over bbox wins over radius — picking the most
+    // specific shape the client sent. All three rely on the 2dsphere index.
+    const polygonRing = parsePolygon(polygon)
+    const bboxCoords = parseBbox(bbox)
+    if (polygonRing) {
+      filter['location.geo'] = {
+        $geoWithin: {
+          $geometry: { type: 'Polygon', coordinates: [polygonRing] },
+        },
+      }
+    } else if (bboxCoords) {
+      filter['location.geo'] = {
+        $geoWithin: { $box: [bboxCoords.sw, bboxCoords.ne] },
+      }
+    } else if (lat && lng && radiusKm) {
+      // Radius search via $geoWithin / $centerSphere. Earth radius ≈ 6378.1 km.
       filter['location.geo'] = {
         $geoWithin: {
           $centerSphere: [[Number(lng), Number(lat)], Number(radiusKm) / 6378.1],
@@ -143,15 +169,24 @@ router.get('/', optionalAuth, async (req, res, next) => {
         cursor = cursor.sort({ createdAt: -1 })
     }
 
+    if (isMap) {
+      // Lean projection — just enough for a price-bubble marker + hover card.
+      cursor = cursor.select(
+        '_id listingType price monthlyRent currency propertyType bedrooms bathrooms sqft title location.city location.state location.geo images.url',
+      )
+    } else {
+      cursor = cursor.populate('owner', 'name kyc.status')
+    }
+
     const [items, total] = await Promise.all([
-      cursor.skip(skip).limit(limit).populate('owner', 'name kyc.status').lean(),
+      cursor.skip(skip).limit(limit).lean(),
       Listing.countDocuments(filter),
     ])
 
     // Decorate each listing with `inWatchlist` for the signed-in user so the
     // browse grid can render the saved heart state without N round-trips.
     let watchedSet = new Set()
-    if (req.user && items.length) {
+    if (!isMap && req.user && items.length) {
       const watched = await Watchlist.find({
         user: req.user._id,
         listing: { $in: items.map((i) => i._id) },
@@ -160,7 +195,9 @@ router.get('/', optionalAuth, async (req, res, next) => {
     }
 
     res.json({
-      items: items.map((i) => ({ ...i, inWatchlist: watchedSet.has(String(i._id)) })),
+      items: isMap
+        ? items
+        : items.map((i) => ({ ...i, inWatchlist: watchedSet.has(String(i._id)) })),
       page,
       limit,
       total,
@@ -333,6 +370,36 @@ router.post('/:id/mark', auth, async (req, res, next) => {
 
 function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// "swLng,swLat,neLng,neLat" -> { sw: [lng,lat], ne: [lng,lat] }
+function parseBbox(raw) {
+  if (!raw) return null
+  const parts = String(raw).split(',').map((n) => Number(n.trim()))
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null
+  const [swLng, swLat, neLng, neLat] = parts
+  if (swLng < -180 || neLng > 180 || swLat < -90 || neLat > 90) return null
+  if (swLng >= neLng || swLat >= neLat) return null
+  return { sw: [swLng, swLat], ne: [neLng, neLat] }
+}
+
+// "lng1,lat1;lng2,lat2;..." -> closed GeoJSON ring [[lng,lat], ..., [lng,lat]].
+function parsePolygon(raw) {
+  if (!raw) return null
+  const points = String(raw)
+    .split(';')
+    .map((pair) => {
+      const [lng, lat] = pair.split(',').map((n) => Number(n.trim()))
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null
+      if (lng < -180 || lng > 180 || lat < -90 || lat > 90) return null
+      return [lng, lat]
+    })
+    .filter(Boolean)
+  if (points.length < 3) return null
+  const first = points[0]
+  const last = points[points.length - 1]
+  if (first[0] !== last[0] || first[1] !== last[1]) points.push([first[0], first[1]])
+  return points
 }
 
 module.exports = router
