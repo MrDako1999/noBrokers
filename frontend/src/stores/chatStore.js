@@ -51,12 +51,13 @@ const useChatStore = create((set, get) => ({
 
   reset: () => {
     // Tear down everything Pusher-related on logout.
+    const pusher = getPusher();
     conversationSubs.forEach(({ channel, presence }) => {
       try {
         channel?.unbind_all();
         presence?.unbind_all();
-        if (channel) getPusher().unsubscribe(channel.name);
-        if (presence) getPusher().unsubscribe(presence.name);
+        if (pusher && channel) pusher.unsubscribe(channel.name);
+        if (pusher && presence) pusher.unsubscribe(presence.name);
       } catch {
         // ignore
       }
@@ -65,7 +66,7 @@ const useChatStore = create((set, get) => ({
     if (userInboxSubscription) {
       try {
         userInboxSubscription.unbind_all();
-        getPusher().unsubscribe(userInboxSubscription.name);
+        if (pusher) pusher.unsubscribe(userInboxSubscription.name);
       } catch {
         // ignore
       }
@@ -145,8 +146,12 @@ const useChatStore = create((set, get) => ({
   // are wired per-call so a remounting ConversationView always sees fresh
   // event payloads. We re-use the channel object across remounts so we
   // don't churn the Pusher connection.
+  //
+  // No-ops gracefully if Pusher isn't configured (e.g. env vars missing
+  // on Vercel) — chat REST keeps working, just without realtime.
   subscribeToConversation: (conversationId, handlers) => {
     const pusher = getPusher();
+    if (!pusher) return null;
     let sub = conversationSubs.get(conversationId);
     if (!sub) {
       const channel = pusher.subscribe(`private-conversation-${conversationId}`);

@@ -111,6 +111,11 @@ async function recordUserMessage({
   body,
   attachments,
   replyTo,
+  // Optional client-generated id for optimistic-send reconciliation. We
+  // never persist it — it only lives on the API response and the Pusher
+  // payload so the sender's own browser can dedupe its optimistic bubble
+  // against the authoritative server message.
+  clientId,
 }) {
   const message = await Message.create({
     conversation: conversation._id,
@@ -134,8 +139,15 @@ async function recordUserMessage({
     { path: 'replyTo', select: 'body type sender attachments deletedAt' },
   ])
 
-  await triggerConversation(conversation._id, 'new-message', { message: populated })
-  return populated
+  // Stitch the clientId into the JSON shape we hand back. Mongoose
+  // documents ignore unknown fields on `.toObject` unless we go through
+  // a plain object; this is what hits both the HTTP response and the
+  // Pusher payload.
+  const payload = populated.toObject ? populated.toObject() : populated
+  if (clientId) payload.clientId = String(clientId)
+
+  await triggerConversation(conversation._id, 'new-message', { message: payload })
+  return payload
 }
 
 // Persist a system message + bump both sides' unread (since system events

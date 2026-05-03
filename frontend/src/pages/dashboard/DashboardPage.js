@@ -69,20 +69,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-heading font-bold tracking-tight">
-            Welcome back, {user?.name?.split(' ')[0]}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {effectiveMode === 'seller'
-              ? 'Manage your listings, viewings and offers.'
-              : 'Browse, save, and book viewings on properties you like.'}
-          </p>
-        </div>
-        <Badge variant={effectiveMode === 'seller' ? 'default' : 'secondary'}>
-          {effectiveMode === 'seller' ? 'Seller mode' : 'Buyer mode'}
-        </Badge>
+      <div>
+        <h1 className="text-2xl font-heading font-bold tracking-tight">
+          Welcome back, {user?.name?.split(' ')[0]}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {effectiveMode === 'seller'
+            ? 'Manage your listings, viewings and offers.'
+            : 'Browse, save, and book viewings on properties you like.'}
+        </p>
       </div>
 
       {kycStatus !== 'verified' && <KycBanner status={kycStatus} />}

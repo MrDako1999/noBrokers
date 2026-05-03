@@ -2,7 +2,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Search, Plus, Heart, LayoutDashboard, LogOut, Menu, Sun, Moon, ShieldCheck, CalendarClock } from 'lucide-react';
 import { useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
-import ModeSwitcher from '@/components/ModeSwitcher';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,13 +13,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import useAuthStore from '@/stores/authStore';
 import useThemeStore from '@/stores/themeStore';
-import useModeStore from '@/stores/modeStore';
 import { cn } from '@/lib/utils';
 
 export default function Navbar() {
   const { user, logout, isAdmin } = useAuthStore();
   const { resolvedTheme, setTheme } = useThemeStore();
-  const { mode } = useModeStore();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -76,7 +73,6 @@ export default function Navbar() {
 
           {user ? (
             <>
-              <ModeSwitcher />
               {canSell ? (
                 <Button asChild variant="default" size="sm" className="hidden md:inline-flex">
                   <Link to="/dashboard/listings/new">
@@ -94,9 +90,6 @@ export default function Navbar() {
                 <DropdownMenuContent align="end" className="w-60">
                   <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
                   <div className="px-2 pb-2 text-xs text-muted-foreground">{user.email}</div>
-                  <div className="px-2 pb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {mode === 'seller' ? 'Seller mode' : 'Buyer mode'}
-                  </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => navigate('/dashboard')}>
                     <LayoutDashboard className="h-4 w-4" />

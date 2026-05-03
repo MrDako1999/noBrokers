@@ -8,11 +8,11 @@ import {
   Settings,
   CalendarClock,
   CalendarDays,
-  Sparkles,
-  Search,
+  ShieldCheck,
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ModeSwitcher from '@/components/ModeSwitcher';
 import useAuthStore from '@/stores/authStore';
 import useModeStore from '@/stores/modeStore';
 import useChatStore from '@/stores/chatStore';
@@ -22,7 +22,6 @@ import { cn } from '@/lib/utils';
 // the unified Settings entry — every user gets the same Settings hub.
 const BUYER_LINKS = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/buy', label: 'Browse', icon: Search },
   { to: '/dashboard/watchlist', label: 'Watchlist', icon: Heart },
   { to: '/dashboard/messages', label: 'Messages', icon: MessageCircle, badge: 'chatUnread' },
   { to: '/dashboard/offers', label: 'Offers sent', icon: MessageSquare },
@@ -58,7 +57,16 @@ export default function AppLayout() {
       <Navbar />
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 md:px-6 py-6 grid gap-6 md:grid-cols-[220px_1fr]">
         <aside className="md:sticky md:top-20 md:self-start space-y-3">
-          <ModeBadge mode={effectiveMode} enrolled={enrolled} />
+          {user?.role === 'admin' && (
+            <Link
+              to="/admin"
+              className="hidden md:inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Open admin console
+            </Link>
+          )}
+          <ModeSwitcher className="hidden md:flex" />
           <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
             {links.map(({ to, label, icon: Icon, end, badge }) => {
               const count = badge ? badges[badge] : 0;
@@ -87,20 +95,6 @@ export default function AppLayout() {
               );
             })}
           </nav>
-          {!enrolled && effectiveMode === 'buyer' && (
-            <Link
-              to="/dashboard/seller/enroll"
-              className="block rounded-xl border border-dashed border-sectionBorder p-3 text-xs text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
-            >
-              <div className="flex items-center gap-1.5 font-semibold text-foreground">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Have a property?
-              </div>
-              <p className="mt-1 leading-snug">
-                Enroll as a lister to post listings and manage viewings.
-              </p>
-            </Link>
-          )}
         </aside>
         <main className="min-w-0">
           <Outlet />
@@ -111,25 +105,3 @@ export default function AppLayout() {
   );
 }
 
-function ModeBadge({ mode, enrolled }) {
-  const isSeller = mode === 'seller';
-  return (
-    <div
-      className={cn(
-        'hidden md:flex items-center gap-2 rounded-lg border px-3 py-2 text-xs',
-        isSeller
-          ? 'border-primary/30 bg-primary/5 text-primary'
-          : 'border-sectionBorder bg-card text-muted-foreground',
-      )}
-    >
-      <span className="font-semibold">
-        {isSeller ? 'Seller mode' : 'Buyer mode'}
-      </span>
-      {!enrolled && !isSeller && (
-        <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
-          viewer
-        </span>
-      )}
-    </div>
-  );
-}

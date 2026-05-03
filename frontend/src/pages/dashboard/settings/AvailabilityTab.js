@@ -18,11 +18,10 @@ import { SUPPORTED_TIMEZONES, WEEKDAY_LABELS } from '@/lib/constants';
 import { formatDateTime, formatMinuteOfDay, parseMinuteOfDay } from '@/lib/format';
 
 const DEFAULT_SLOT_LENGTH = 30;
-const DEFAULT_BUFFER = 0;
 
 // Shape of a row in the local editor state. Kept minimal — we serialize
 // to the server's rule shape on save.
-// { weekday: number, start: '09:00', end: '17:00', slotLengthMin, bufferMin }
+// { weekday: number, start: '09:00', end: '17:00', slotLengthMin }
 function newRow(weekday) {
   return {
     id: `${weekday}-${Math.random().toString(36).slice(2, 8)}`,
@@ -30,7 +29,6 @@ function newRow(weekday) {
     start: '09:00',
     end: '17:00',
     slotLengthMin: DEFAULT_SLOT_LENGTH,
-    bufferMin: DEFAULT_BUFFER,
   };
 }
 
@@ -41,7 +39,6 @@ function fromRule(rule) {
     start: formatMinuteOfDay(rule.startMinute),
     end: formatMinuteOfDay(rule.endMinute),
     slotLengthMin: rule.slotLengthMin || DEFAULT_SLOT_LENGTH,
-    bufferMin: rule.bufferMin || DEFAULT_BUFFER,
   };
 }
 
@@ -73,7 +70,6 @@ export default function AvailabilityTab() {
             startMinute: parseMinuteOfDay(r.start),
             endMinute: parseMinuteOfDay(r.end),
             slotLengthMin: Number(r.slotLengthMin) || DEFAULT_SLOT_LENGTH,
-            bufferMin: Number(r.bufferMin) || 0,
             timezone,
           }))
           .filter(
@@ -202,7 +198,7 @@ export default function AvailabilityTab() {
 
 function RuleRow({ row, onChange, onRemove }) {
   return (
-    <div className="grid gap-2 rounded-lg border border-sectionBorder bg-card p-3 sm:grid-cols-[1fr_1fr_120px_120px_40px]">
+    <div className="grid gap-2 rounded-lg border border-sectionBorder bg-card p-3 sm:grid-cols-[1fr_1fr_120px_40px]">
       <div className="space-y-1">
         <Label className="text-xs">Start</Label>
         <Input
@@ -224,17 +220,6 @@ function RuleRow({ row, onChange, onRemove }) {
           step={15}
           value={row.slotLengthMin}
           onChange={(e) => onChange({ slotLengthMin: Number(e.target.value) })}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label className="text-xs">Buffer (min)</Label>
-        <Input
-          type="number"
-          min={0}
-          max={120}
-          step={5}
-          value={row.bufferMin}
-          onChange={(e) => onChange({ bufferMin: Number(e.target.value) })}
         />
       </div>
       <div className="flex items-end justify-center sm:justify-end pt-2 sm:pt-0">

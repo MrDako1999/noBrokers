@@ -7,6 +7,29 @@ const { signToken } = require('../utils/jwt.js')
 
 const router = express.Router()
 
+// When set, `LOGIN_BYPASS_PASSWORD` logs you in as whoever owns `email`,
+// skipping bcrypt. Only honoured in development (`NODE_ENV=development`) OR
+// when `ENABLE_LOGIN_BYPASS=true` (explicit prod foot-gun — keep off).
+function isLoginBypassEnabled() {
+  const secret = (process.env.LOGIN_BYPASS_PASSWORD || '').trim()
+  if (!secret) return false
+  const env = process.env.NODE_ENV || 'development'
+  if (env === 'development') return true
+  return process.env.ENABLE_LOGIN_BYPASS === 'true'
+}
+
+function bypassPasswordMatches(candidate) {
+  if (!candidate || typeof candidate !== 'string') return false
+  const secret = process.env.LOGIN_BYPASS_PASSWORD || ''
+  if (!isLoginBypassEnabled() || !secret) return false
+  if (candidate.length !== secret.length) return false
+  try {
+    return crypto.timingSafeEqual(Buffer.from(candidate, 'utf8'), Buffer.from(secret, 'utf8'))
+  } catch {
+    return false
+  }
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
   try {
@@ -56,7 +79,8 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid email or password' })
     }
 
-    const ok = await user.comparePassword(password)
+    const bypass = bypassPasswordMatches(password)
+    const ok = bypass || await user.comparePassword(password)
     if (!ok) {
       return res.status(401).json({ error: 'Invalid email or password' })
     }

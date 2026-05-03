@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, ExternalLink } from 'lucide-react';
@@ -9,6 +9,7 @@ import { timeAgo } from '@/lib/format';
 import MessageBubble from './MessageBubble';
 import SystemMessage from './SystemMessage';
 import Composer from './Composer';
+import MessageSkeleton from './MessageSkeleton';
 
 // Renders header + messages list + composer. Owns:
 //   - the messages query (infinite, cursor-paginated, oldest at top)
@@ -43,6 +44,7 @@ export default function ConversationView({ conversationId }) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isLoading: messagesLoading,
     refetch: refetchMessages,
   } = useInfiniteQuery({
     queryKey: ['chat-messages', conversationId],
@@ -70,13 +72,31 @@ export default function ConversationView({ conversationId }) {
       onNewMessage: (message) => {
         queryClient.setQueryData(['chat-messages', conversationId], (prev) => {
           if (!prev) return prev;
-          // Avoid double-adding if we already optimistically saw it.
-          const seen = prev.pages.some((p) => p.items.some((m) => m._id === message._id));
-          if (seen) return prev;
-          const next = { ...prev, pages: [...prev.pages] };
+          // Dedupe by server _id (already inserted via API ack) or by
+          // clientId (still showing the optimistic bubble — replace it
+          // in place so the bubble keeps its position).
+          const incomingClientId = message.clientId || null;
+          let replaced = false;
+          const nextPages = prev.pages.map((p) => {
+            const items = p.items.map((m) => {
+              if (m._id === message._id) {
+                replaced = true;
+                return { ...message, status: 'sent' };
+              }
+              if (incomingClientId && m.clientId === incomingClientId) {
+                replaced = true;
+                return { ...message, status: 'sent' };
+              }
+              return m;
+            });
+            return { ...p, items };
+          });
+          if (replaced) return { ...prev, pages: nextPages };
+          // Brand-new message from the other party — prepend.
+          const next = { ...prev, pages: [...nextPages] };
           next.pages[0] = {
             ...next.pages[0],
-            items: [message, ...(next.pages[0]?.items || [])],
+            items: [{ ...message, status: 'sent' }, ...(next.pages[0]?.items || [])],
           };
           return next;
         });
@@ -190,6 +210,76 @@ export default function ConversationView({ conversationId }) {
     });
   };
 
+  // ---- Optimistic send plumbing ------------------------------------------
+  // Composer fires these so the bubble is on screen the moment the user
+  // hits send. We reconcile against the server in three phases:
+  //   1. onOptimisticSend → push a temp bubble with status='sending'
+  //   2. onOptimisticAck  → swap in the real server message (clock → tick)
+  //   3. Pusher new-message → if it arrives first, dedupe in onNewMessage
+  // Failed sends keep the bubble but switch to status='failed'.
+  const insertOptimistic = useCallback(
+    (optimistic) => {
+      queryClient.setQueryData(['chat-messages', conversationId], (prev) => {
+        if (!prev) {
+          // No pages yet — seed one so the optimistic message renders.
+          return {
+            pages: [{ items: [optimistic], hasMore: false, nextCursor: null }],
+            pageParams: [undefined],
+          };
+        }
+        const next = { ...prev, pages: [...prev.pages] };
+        next.pages[0] = {
+          ...next.pages[0],
+          items: [optimistic, ...(next.pages[0]?.items || [])],
+        };
+        return next;
+      });
+    },
+    [conversationId, queryClient],
+  );
+
+  const ackOptimistic = useCallback(
+    (clientId, serverMessage) => {
+      queryClient.setQueryData(['chat-messages', conversationId], (prev) => {
+        if (!prev) return prev;
+        let replaced = false;
+        const pages = prev.pages.map((p) => {
+          const items = p.items.map((m) => {
+            if (m.clientId === clientId || m._id === serverMessage._id) {
+              replaced = true;
+              return { ...serverMessage, status: 'sent' };
+            }
+            return m;
+          });
+          return { ...p, items };
+        });
+        if (replaced) return { ...prev, pages };
+        // No matching optimistic (Pusher beat us) — server msg already
+        // present, leave cache as-is.
+        return prev;
+      });
+    },
+    [conversationId, queryClient],
+  );
+
+  const failOptimistic = useCallback(
+    (clientId) => {
+      queryClient.setQueryData(['chat-messages', conversationId], (prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          pages: prev.pages.map((p) => ({
+            ...p,
+            items: p.items.map((m) =>
+              m.clientId === clientId ? { ...m, status: 'failed' } : m,
+            ),
+          })),
+        };
+      });
+    },
+    [conversationId, queryClient],
+  );
+
   const counterpart = convData?.counterpart;
   const counterpartId = counterpart?._id;
   const counterpartOnline = counterpartId
@@ -221,6 +311,8 @@ export default function ConversationView({ conversationId }) {
             </button>
           </div>
         )}
+
+        {messagesLoading && messages.length === 0 && <MessageSkeleton />}
 
         {messages.map((m) => {
           if (m.type === 'system') {
@@ -282,10 +374,14 @@ export default function ConversationView({ conversationId }) {
       {convData && (
         <Composer
           conversation={convData}
+          currentUser={user}
           presenceChannel={presenceChannelRef.current}
           replyTo={replyTo}
           onClearReply={() => setReplyTo(null)}
           onAfterSend={onAfterSend}
+          onOptimisticSend={insertOptimistic}
+          onOptimisticAck={ackOptimistic}
+          onOptimisticFail={failOptimistic}
         />
       )}
     </div>
@@ -293,6 +389,67 @@ export default function ConversationView({ conversationId }) {
 }
 
 function Header({ counterpart, counterpartOnline, lastSeen, listing, myRole }) {
+  // Subject convention (mirrors the inbox row):
+  // - Buyer chats with a *property*. We promote the listing (title +
+  //   cover image) to the primary slot. The owner's name + presence dot
+  //   live in a small secondary line so the user still knows there's a
+  //   real human behind it.
+  // - Owner sees the *buyer* as the primary subject (one buyer per
+  //   thread). The listing pill below provides the property context.
+  if (myRole === 'buyer') {
+    return <BuyerHeader listing={listing} owner={counterpart} ownerOnline={counterpartOnline} lastSeen={lastSeen} />;
+  }
+  return <OwnerHeader counterpart={counterpart} counterpartOnline={counterpartOnline} lastSeen={lastSeen} listing={listing} />;
+}
+
+function BuyerHeader({ listing, owner, ownerOnline, lastSeen }) {
+  const cover = listing?.images?.[0]?.url;
+  const ownerName = owner?.name || 'Owner';
+  const presenceLabel = ownerOnline
+    ? 'Online'
+    : lastSeen
+      ? `last seen ${timeAgo(lastSeen)}`
+      : 'offline';
+  return (
+    <div className="border-b border-sectionBorder px-3 py-2">
+      <Link
+        to={listing ? `/listings/${listing._id}` : '#'}
+        className="flex items-center gap-2.5 rounded-lg p-1 -m-1 hover:bg-accent/40"
+      >
+        {cover ? (
+          <img
+            src={cover}
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-lg object-cover"
+          />
+        ) : (
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-secondary">
+            <Building2 className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold">
+            {listing?.title || 'Property'}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                ownerOnline ? 'bg-success' : 'bg-muted-foreground/40'
+              }`}
+              aria-hidden="true"
+            />
+            <span className="truncate">
+              {ownerName} · {presenceLabel}
+            </span>
+          </div>
+        </div>
+        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      </Link>
+    </div>
+  );
+}
+
+function OwnerHeader({ counterpart, counterpartOnline, lastSeen, listing }) {
   const initial = (counterpart?.name || '?')[0]?.toUpperCase();
   return (
     <div className="border-b border-sectionBorder px-3 py-2">
@@ -338,9 +495,7 @@ function Header({ counterpart, counterpartOnline, lastSeen, listing, myRole }) {
           )}
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium">{listing.title}</div>
-            <div className="text-[10px] text-muted-foreground">
-              {myRole === 'owner' ? 'Your listing' : 'View property'}
-            </div>
+            <div className="text-[10px] text-muted-foreground">Your listing</div>
           </div>
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
         </Link>

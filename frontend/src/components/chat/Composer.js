@@ -28,14 +28,20 @@ const TYPING_THROTTLE_MS = 3000;
 
 export default function Composer({
   conversation,
+  currentUser,
   presenceChannel,
   replyTo,
   onClearReply,
   onAfterSend,
+  // Optimistic plumbing — owner (ConversationView) wires these into its
+  // React Query cache so the bubble appears instantly and the network
+  // round-trip just flips a tick.
+  onOptimisticSend,
+  onOptimisticAck,
+  onOptimisticFail,
 }) {
   const [text, setText] = useState('');
   const [pending, setPending] = useState([]); // [{ id, file, progress, uploaded? }]
-  const [busy, setBusy] = useState(false);
   const fileInputRef = useRef(null);
   const lastTypingAt = useRef(0);
   const taRef = useRef(null);
@@ -103,24 +109,63 @@ export default function Composer({
     const cleanText = text.trim();
     const ready = pending.filter((p) => p.uploaded);
     if (!cleanText && ready.length === 0) return;
-    if (busy) return;
     if (pending.length !== ready.length) return; // wait for uploads
 
-    setBusy(true);
+    // Build the optimistic message *before* clearing inputs so we capture
+    // the exact attachments + reply target the user pressed send on.
+    const clientId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `c-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const attachmentsPayload = ready.map((p) => p.uploaded);
+    const optimistic = {
+      _id: `optimistic-${clientId}`,
+      _isOptimistic: true,
+      clientId,
+      status: 'sending',
+      conversation: conversation._id,
+      sender: currentUser
+        ? { _id: currentUser._id, name: currentUser.name }
+        : null,
+      senderRole: conversation.myRole,
+      type: attachmentsPayload.length ? 'attachment' : 'text',
+      body: cleanText,
+      attachments: attachmentsPayload,
+      replyTo: replyTo
+        ? {
+            _id: replyTo._id,
+            body: replyTo.body,
+            type: replyTo.type,
+            attachments: replyTo.attachments,
+            deletedAt: replyTo.deletedAt,
+          }
+        : null,
+      readBy: [],
+      createdAt: new Date().toISOString(),
+    };
+
+    // Snapshot reply for the API call, then clear UI immediately.
+    const replyToId = replyTo?._id;
+    setText('');
+    setPending([]);
+    onClearReply?.();
+    onOptimisticSend?.(optimistic);
+    onAfterSend?.();
+
     try {
-      await api.post(`/chat/conversations/${conversation._id}/messages`, {
-        body: cleanText,
-        attachments: ready.map((p) => p.uploaded),
-        replyToId: replyTo?._id,
-      });
-      setText('');
-      setPending([]);
-      onClearReply?.();
-      onAfterSend?.();
+      const { data } = await api.post(
+        `/chat/conversations/${conversation._id}/messages`,
+        {
+          body: cleanText,
+          attachments: attachmentsPayload,
+          replyToId,
+          clientId,
+        },
+      );
+      onOptimisticAck?.(clientId, data.message);
     } catch (err) {
       console.error('send failed', err);
-    } finally {
-      setBusy(false);
+      onOptimisticFail?.(clientId, err);
     }
   };
 
@@ -243,10 +288,13 @@ export default function Composer({
           type="button"
           aria-label="Send"
           onClick={sendNow}
-          disabled={busy || (!text.trim() && pending.filter((p) => p.uploaded).length === 0) || pending.some((p) => !p.uploaded && !p.error)}
+          disabled={
+            (!text.trim() && pending.filter((p) => p.uploaded).length === 0) ||
+            pending.some((p) => !p.uploaded && !p.error)
+          }
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-white disabled:opacity-40"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <Send className="h-4 w-4" />
         </button>
       </div>
 

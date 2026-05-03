@@ -83,7 +83,7 @@ function expandRules(rules, from, to) {
     for (let i = 0; i < maxDays; i++) {
       const zp = partsInZone(cursor, tz)
       if (zp.weekday === rule.weekday) {
-        const step = (rule.slotLengthMin || 30) + (rule.bufferMin || 0)
+        const step = rule.slotLengthMin || 30
         for (
           let minute = rule.startMinute;
           minute + rule.slotLengthMin <= rule.endMinute;

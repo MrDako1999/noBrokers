@@ -37,7 +37,7 @@ router.get('/owners/me/availability', auth, requireSeller, async (req, res, next
 // UI sends the entire weekly schedule; we wipe + re-insert. Exception
 // editing stays per-row (below) because they're one-offs.
 //
-// Body: { rules: [{ weekday, startMinute, endMinute, slotLengthMin, bufferMin, timezone }], timezone? }
+// Body: { rules: [{ weekday, startMinute, endMinute, slotLengthMin, timezone }], timezone? }
 router.put('/owners/me/availability', auth, requireSeller, async (req, res, next) => {
   try {
     const { rules, timezone } = req.body
@@ -71,7 +71,7 @@ router.put('/owners/me/availability', auth, requireSeller, async (req, res, next
         startMinute,
         endMinute,
         slotLengthMin: Math.max(5, Math.min(480, Number(r.slotLengthMin) || 30)),
-        bufferMin: Math.max(0, Math.min(240, Number(r.bufferMin) || 0)),
+        bufferMin: 0,
         timezone: r.timezone || tz,
         active: true,
       })

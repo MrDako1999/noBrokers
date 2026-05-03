@@ -3,14 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ShieldCheck, Wallet, MessageSquare, ArrowRight, Home as HomeIcon, Building2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import ListingCard from '@/components/ListingCard';
 import api from '@/lib/api';
 
@@ -52,27 +45,55 @@ export default function HomePage() {
                 paperwork, verification and offers — you keep the commission.
               </p>
 
-              <form onSubmit={onSearch} className="mt-8 grid grid-cols-1 sm:grid-cols-[140px_1fr_auto] gap-2 max-w-2xl rounded-2xl bg-white p-2 shadow-xl">
-                <Select value={intent} onValueChange={setIntent}>
-                  <SelectTrigger className="border-transparent bg-secondary/40 h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sale">Buy</SelectItem>
-                    <SelectItem value="rent">Rent</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  icon={Search}
-                  placeholder="Mont Kiara, Bangsar South, Penang…"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="h-12 bg-transparent border-transparent text-foreground"
-                />
-                <Button type="submit" size="lg" className="h-12">
-                  Search
-                </Button>
-              </form>
+              {/* Hero search. Forces a light surface (`bg-white`) regardless of
+                  the current theme, so we pin children to slate-* colors instead
+                  of `text-foreground` (which flips to white in dark mode and
+                  becomes invisible on this card). */}
+              <div className="mt-8 max-w-2xl">
+                <div className="inline-flex rounded-t-xl bg-white/95 p-1 shadow-lg">
+                  {[
+                    { value: 'sale', label: 'Buy' },
+                    { value: 'rent', label: 'Rent' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setIntent(opt.value)}
+                      aria-pressed={intent === opt.value}
+                      className={cn(
+                        'h-9 rounded-lg px-5 text-sm font-medium transition-colors',
+                        intent === opt.value
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-slate-700 hover:bg-slate-100',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <form
+                  onSubmit={onSearch}
+                  className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 rounded-2xl rounded-tl-none bg-white p-2 shadow-xl"
+                >
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Mont Kiara, Bangsar South, Penang…"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      className="h-12 w-full rounded-xl border-transparent bg-transparent pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                  </div>
+                  <Button type="submit" size="lg" className="h-12">
+                    Search
+                  </Button>
+                </form>
+              </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/80">
                 <span className="inline-flex items-center gap-1.5">

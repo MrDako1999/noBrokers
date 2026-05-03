@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Pencil, Trash2, Reply, Check, CheckCheck } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2, Reply, Check, CheckCheck, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -29,9 +29,11 @@ export default function MessageBubble({
   }, [editing]);
 
   const isDeleted = !!message.deletedAt;
+  const isOptimistic = !!message._isOptimistic || message.status === 'sending' || message.status === 'failed';
   const editable =
     isMine &&
     !isDeleted &&
+    !isOptimistic &&
     message.type === 'text' &&
     Date.now() - new Date(message.createdAt).getTime() < EDIT_WINDOW_MS;
 
@@ -80,10 +82,12 @@ export default function MessageBubble({
     >
       <div
         className={cn(
-          'relative max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm',
+          'relative max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm transition-opacity',
           isMine
             ? 'rounded-br-md bg-primary text-white'
             : 'rounded-bl-md bg-secondary text-secondary-foreground',
+          message.status === 'sending' && 'opacity-80',
+          message.status === 'failed' && 'ring-1 ring-destructive/60',
         )}
       >
         {message.replyTo && !isDeleted && <ReplyPreview parent={message.replyTo} mineBubble={isMine} />}
@@ -149,18 +153,12 @@ export default function MessageBubble({
             {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </time>
           {isMine && !isDeleted && (
-            <span aria-label={seenByCounterpart ? 'Seen' : 'Sent'}>
-              {seenByCounterpart ? (
-                <CheckCheck className="h-3.5 w-3.5" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-            </span>
+            <StatusIcon status={message.status} seenByCounterpart={seenByCounterpart} />
           )}
         </div>
       </div>
 
-      {!isDeleted && !editing && (
+      {!isDeleted && !editing && !isOptimistic && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -189,6 +187,40 @@ export default function MessageBubble({
         </DropdownMenu>
       )}
     </div>
+  );
+}
+
+// Render the appropriate status indicator for *my* messages:
+//   sending → clock     (optimistic, no server ack yet)
+//   failed  → red ⚠     (server rejected / network died)
+//   sent    → single ✓  (server has it, counterpart hasn't read)
+//   seen    → double ✓✓ (counterpart's readBy entry present)
+function StatusIcon({ status, seenByCounterpart }) {
+  if (status === 'sending') {
+    return (
+      <span aria-label="Sending">
+        <Clock className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <span aria-label="Failed to send" className="text-red-300">
+        <AlertCircle className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (seenByCounterpart) {
+    return (
+      <span aria-label="Seen">
+        <CheckCheck className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  return (
+    <span aria-label="Sent">
+      <Check className="h-3.5 w-3.5" />
+    </span>
   );
 }
 

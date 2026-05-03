@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom';
 import { Eye, Store, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import useAuthStore from '@/stores/authStore';
 import useModeStore from '@/stores/modeStore';
 
-// Pill toggle rendered in the navbar. Three states:
-//  1. Signed-out or not-enrolled   -> "Become a lister" CTA link
-//  2. Enrolled                     -> segmented buyer/seller pill
-//  3. Admin                        -> treated like enrolled (can always toggle)
+// Single, dedicated control for switching between buyer and seller dashboards.
+// Lives at the top of the dashboard sidebar — not in the global navbar —
+// because the distinction only matters once you're inside the app.
+//
+// Two render states:
+//   - Enrolled user: segmented buyer/seller toggle (full-width in sidebar).
+//   - Not-enrolled user: "Become a lister" enrollment CTA in the same slot,
+//     so the region is always the "who am I right now" block.
 export default function ModeSwitcher({ className }) {
   const { user } = useAuthStore();
   const { mode, setMode } = useModeStore();
@@ -19,17 +22,21 @@ export default function ModeSwitcher({ className }) {
 
   if (!enrolled) {
     return (
-      <Button
-        asChild
-        variant="outline"
-        size="sm"
-        className={cn('hidden md:inline-flex', className)}
+      <Link
+        to="/dashboard/seller/enroll"
+        className={cn(
+          'group block rounded-xl border border-dashed border-sectionBorder p-3 text-xs text-muted-foreground hover:border-primary hover:text-foreground transition-colors',
+          className,
+        )}
       >
-        <Link to="/dashboard/seller/enroll">
-          <Sparkles className="h-4 w-4 mr-1.5" />
-          Become a lister
-        </Link>
-      </Button>
+        <div className="flex items-center gap-1.5 font-semibold text-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          Have a property?
+        </div>
+        <p className="mt-1 leading-snug">
+          Enroll as a lister to post listings and manage viewings.
+        </p>
+      </Link>
     );
   }
 
@@ -38,7 +45,7 @@ export default function ModeSwitcher({ className }) {
       role="tablist"
       aria-label="Switch dashboard mode"
       className={cn(
-        'hidden md:inline-flex items-center rounded-full border border-sectionBorder bg-card p-0.5 text-xs font-medium',
+        'flex items-center rounded-full border border-sectionBorder bg-card p-0.5 text-xs font-medium',
         className,
       )}
     >
@@ -66,7 +73,7 @@ function PillTab({ active, onClick, icon: Icon, label }) {
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors',
+        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 transition-colors',
         active
           ? 'bg-primary text-white shadow-sm'
           : 'text-foreground/70 hover:text-foreground',

@@ -242,7 +242,7 @@ router.post('/conversations/:id/messages', auth, async (req, res, next) => {
       return res.status(403).json({ error: 'Only conversation parties can send' })
     }
 
-    const { body, attachments, replyToId, action } = req.body
+    const { body, attachments, replyToId, action, clientId } = req.body
 
     // --- Inline action dispatcher (offer / viewing) ---------------------
     if (action && typeof action === 'object') {
@@ -292,6 +292,7 @@ router.post('/conversations/:id/messages', auth, async (req, res, next) => {
       body: cleanBody,
       attachments: cleanAttachments,
       replyTo,
+      clientId: typeof clientId === 'string' ? clientId : undefined,
     })
 
     res.status(201).json({ message })

@@ -27,8 +27,8 @@ const availabilityRuleSchema = new mongoose.Schema(
     endMinute: { type: Number, min: 0, max: 1440, required: true },
 
     slotLengthMin: { type: Number, min: 5, max: 480, default: 30 },
-    // Extra gap padded between accepted viewings (travel time, buffer). The
-    // slot engine subtracts this from the available window after expansion.
+    // Legacy field kept for BSON compatibility — always persisted as 0. Slot
+    // spacing follows `slotLengthMin` only.
     bufferMin: { type: Number, min: 0, max: 240, default: 0 },
 
     // IANA timezone (e.g. 'Asia/Kuala_Lumpur'). Slot expansion is done in
