@@ -10,6 +10,9 @@ const offerRoutes = require('./routes/offers.js')
 const watchlistRoutes = require('./routes/watchlist.js')
 const uploadRoutes = require('./routes/uploads.js')
 const adminRoutes = require('./routes/admin.js')
+const availabilityRoutes = require('./routes/availability.js')
+const viewingRoutes = require('./routes/viewings.js')
+const chatRoutes = require('./routes/chat.js')
 
 const app = express()
 
@@ -66,6 +69,11 @@ app.use('/api/offers', offerRoutes)
 app.use('/api/watchlist', watchlistRoutes)
 app.use('/api/uploads', uploadRoutes)
 app.use('/api/admin', adminRoutes)
+// Availability router owns two path families — /owners/... and /listings/:id/slots —
+// so mount at /api and let its own paths resolve.
+app.use('/api', availabilityRoutes)
+app.use('/api/viewings', viewingRoutes)
+app.use('/api/chat', chatRoutes)
 
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'Not found' })

@@ -4,6 +4,7 @@ const Listing = require('../models/Listing.js')
 const Watchlist = require('../models/Watchlist.js')
 const auth = require('../middleware/auth.js')
 const { optionalAuth } = require('../middleware/auth.js')
+const requireSeller = require('../middleware/requireSeller.js')
 
 const router = express.Router()
 
@@ -253,8 +254,8 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 
 // POST /api/listings — owner creates a draft. Goes straight to `pending`
 // when ownership documents are attached, otherwise stays `draft` for them
-// to come back to.
-router.post('/', auth, async (req, res, next) => {
+// to come back to. Requires seller enrollment.
+router.post('/', auth, requireSeller, async (req, res, next) => {
   try {
     const payload = buildListingPayload(req.body, req.user._id)
 

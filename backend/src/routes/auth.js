@@ -73,6 +73,18 @@ router.get('/me', auth, async (req, res) => {
   res.json({ user: req.user.toJSON() })
 })
 
+// POST /api/auth/heartbeat — the chat widget pings this every ~60s while
+// open. Cheap write — uses updateOne so the doc isn't reloaded into
+// memory. Powers the "last seen Xm ago" indicator on the chat header.
+router.post('/heartbeat', auth, async (req, res, next) => {
+  try {
+    await User.updateOne({ _id: req.user._id }, { $set: { lastSeenAt: new Date() } })
+    res.json({ ok: true })
+  } catch (err) {
+    next(err)
+  }
+})
+
 // PUT /api/auth/profile
 router.put('/profile', auth, async (req, res, next) => {
   try {
@@ -83,6 +95,70 @@ router.put('/profile', auth, async (req, res, next) => {
     if (Array.isArray(accountTypes)) update.accountTypes = accountTypes
 
     const user = await User.findByIdAndUpdate(req.user._id, update, { new: true })
+    res.json({ user: user.toJSON() })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /api/auth/seller/enroll — flips the caller into an enrolled seller.
+// Body: { termsVersion: string }. We record the ToS version they accepted
+// so we can re-prompt later when the terms are updated. Re-enrolling is a
+// no-op except for refreshing the timestamps/version.
+router.post('/seller/enroll', auth, async (req, res, next) => {
+  try {
+    const { termsVersion } = req.body
+    if (!termsVersion || typeof termsVersion !== 'string') {
+      return res.status(400).json({ error: 'Terms version is required' })
+    }
+
+    const user = await User.findById(req.user._id)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const now = new Date()
+    user.sellerProfile = {
+      enrolled: true,
+      enrolledAt: user.sellerProfile?.enrolledAt || now,
+      termsAcceptedVersion: termsVersion,
+      termsAcceptedAt: now,
+    }
+    // Swap the user into seller mode right after enrollment so the dashboard
+    // flips immediately on the next /auth/me fetch.
+    user.preferences = {
+      ...(user.preferences?.toObject?.() || user.preferences || {}),
+      lastMode: 'seller',
+    }
+    await user.save()
+    res.json({ user: user.toJSON() })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PUT /api/auth/preferences — small writable slice of `user.preferences`.
+// Used by the buyer/seller mode switcher (debounced from the client).
+router.put('/preferences', auth, async (req, res, next) => {
+  try {
+    const { lastMode, timezone } = req.body
+    const user = await User.findById(req.user._id)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const prefs = {
+      ...(user.preferences?.toObject?.() || user.preferences || {}),
+    }
+    if (lastMode === 'buyer' || lastMode === 'seller') {
+      if (lastMode === 'seller' && !user.sellerProfile?.enrolled && user.role !== 'admin') {
+        return res
+          .status(403)
+          .json({ error: 'Enroll as a seller before switching to seller mode' })
+      }
+      prefs.lastMode = lastMode
+    }
+    if (typeof timezone === 'string' && timezone.trim()) {
+      prefs.timezone = timezone.trim()
+    }
+    user.preferences = prefs
+    await user.save()
     res.json({ user: user.toJSON() })
   } catch (err) {
     next(err)

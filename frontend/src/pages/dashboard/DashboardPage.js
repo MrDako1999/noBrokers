@@ -1,18 +1,44 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Heart, MessageSquare, Home, ShieldAlert, ShieldCheck, Clock } from 'lucide-react';
+import {
+  Plus,
+  Heart,
+  MessageSquare,
+  MessageCircle,
+  Home,
+  ShieldAlert,
+  ShieldCheck,
+  Clock,
+  CalendarClock,
+  Sparkles,
+  Store,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import useAuthStore from '@/stores/authStore';
-import { LISTING_STATUS_LABELS, KYC_STATUS_LABELS } from '@/lib/constants';
+import useModeStore from '@/stores/modeStore';
+import useChatStore from '@/stores/chatStore';
+import {
+  LISTING_STATUS_LABELS,
+  VIEWING_STATUS_LABELS,
+  VIEWING_STATUS_VARIANTS,
+} from '@/lib/constants';
+import { formatInZone } from '@/lib/format';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const { mode } = useModeStore();
+  const chatConversations = useChatStore((s) => s.conversations);
+  const chatUnread = useChatStore((s) => s.totalUnread);
+
+  const enrolled = !!user?.sellerProfile?.enrolled || user?.role === 'admin';
+  const effectiveMode = mode === 'seller' && enrolled ? 'seller' : 'buyer';
 
   const myListings = useQuery({
     queryKey: ['my-listings'],
     queryFn: async () => (await api.get('/listings/mine')).data.items,
+    enabled: enrolled,
   });
   const watchlist = useQuery({
     queryKey: ['watchlist'],
@@ -25,45 +51,141 @@ export default function DashboardPage() {
   const receivedOffers = useQuery({
     queryKey: ['offers-received'],
     queryFn: async () => (await api.get('/offers/received')).data.items,
+    enabled: enrolled,
+  });
+  const buyerViewings = useQuery({
+    queryKey: ['viewings', 'buyer'],
+    queryFn: async () =>
+      (await api.get('/viewings/mine', { params: { side: 'buyer' } })).data.items,
+  });
+  const ownerViewings = useQuery({
+    queryKey: ['viewings', 'owner'],
+    queryFn: async () =>
+      (await api.get('/viewings/mine', { params: { side: 'owner' } })).data.items,
+    enabled: enrolled,
   });
 
   const kycStatus = user?.kyc?.status || 'unverified';
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">Welcome back, {user?.name?.split(' ')[0]}</h1>
-        <p className="text-sm text-muted-foreground mt-1">Here&apos;s what&apos;s happening with your account.</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-heading font-bold tracking-tight">
+            Welcome back, {user?.name?.split(' ')[0]}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {effectiveMode === 'seller'
+              ? 'Manage your listings, viewings and offers.'
+              : 'Browse, save, and book viewings on properties you like.'}
+          </p>
+        </div>
+        <Badge variant={effectiveMode === 'seller' ? 'default' : 'secondary'}>
+          {effectiveMode === 'seller' ? 'Seller mode' : 'Buyer mode'}
+        </Badge>
       </div>
 
-      {kycStatus !== 'verified' && (
-        <KycBanner status={kycStatus} />
-      )}
+      {kycStatus !== 'verified' && <KycBanner status={kycStatus} />}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat
-          icon={Home}
-          label="My listings"
-          value={myListings.data?.length ?? '—'}
-          href="/dashboard/listings"
+      {!enrolled && <SellerEnrollmentBanner />}
+
+      {effectiveMode === 'seller' ? (
+        <SellerOverview
+          myListings={myListings.data}
+          receivedOffers={receivedOffers.data}
+          ownerViewings={ownerViewings.data}
+          chatCount={chatConversations.length}
+          chatUnread={chatUnread}
         />
+      ) : (
+        <BuyerOverview
+          watchlist={watchlist.data}
+          sentOffers={sentOffers.data}
+          buyerViewings={buyerViewings.data}
+          chatCount={chatConversations.length}
+          chatUnread={chatUnread}
+        />
+      )}
+    </div>
+  );
+}
+
+function BuyerOverview({ watchlist, sentOffers, buyerViewings, chatCount, chatUnread }) {
+  const upcoming = (buyerViewings || []).filter(
+    (v) => ['requested', 'counter_proposed', 'accepted'].includes(v.status),
+  );
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat icon={Heart} label="Watchlist" value={watchlist?.length ?? '—'} href="/dashboard/watchlist" />
         <Stat
-          icon={Heart}
-          label="Watchlist"
-          value={watchlist.data?.length ?? '—'}
-          href="/dashboard/watchlist"
+          icon={MessageCircle}
+          label="Messages"
+          value={chatCount}
+          href="/dashboard/messages"
+          badge={chatUnread}
         />
         <Stat
           icon={MessageSquare}
           label="Offers sent"
-          value={sentOffers.data?.length ?? '—'}
+          value={sentOffers?.length ?? '—'}
           href="/dashboard/offers"
+        />
+        <Stat
+          icon={CalendarClock}
+          label="Viewings booked"
+          value={upcoming.length}
+          href="/dashboard/viewings"
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ViewingsBlock
+          title="Your upcoming viewings"
+          items={upcoming.slice(0, 4)}
+          empty="You have not booked any viewings yet."
+          side="buyer"
+        />
+        <RecentOffersBlock title="Recent offers" items={sentOffers?.slice(0, 4)} />
+      </div>
+    </>
+  );
+}
+
+function SellerOverview({ myListings, receivedOffers, ownerViewings, chatCount, chatUnread }) {
+  const pendingRequests = (ownerViewings || []).filter((v) =>
+    ['requested', 'counter_proposed'].includes(v.status),
+  );
+  const upcoming = (ownerViewings || []).filter(
+    (v) => v.status === 'accepted' && new Date(v.startAt) > new Date(),
+  );
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat
+          icon={Home}
+          label="My listings"
+          value={myListings?.length ?? '—'}
+          href="/dashboard/listings"
+        />
+        <Stat
+          icon={MessageCircle}
+          label="Messages"
+          value={chatCount}
+          href="/dashboard/messages"
+          badge={chatUnread}
         />
         <Stat
           icon={MessageSquare}
           label="Offers received"
-          value={receivedOffers.data?.length ?? '—'}
+          value={receivedOffers?.length ?? '—'}
           href="/dashboard/offers"
+        />
+        <Stat
+          icon={CalendarClock}
+          label="Viewing requests"
+          value={pendingRequests.length}
+          href="/dashboard/viewings"
         />
       </div>
 
@@ -75,56 +197,59 @@ export default function DashboardPage() {
               Free to list. Verified ownership shows up next to your name on every listing.
             </p>
           </div>
-          <Button asChild>
-            <Link to="/dashboard/listings/new">
-              <Plus className="h-4 w-4 mr-1.5" />
-              New listing
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/dashboard/seller/availability">Set availability</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/dashboard/listings/new">
+                <Plus className="h-4 w-4 mr-1.5" />
+                New listing
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <RecentBlock
-          title="Your recent listings"
-          empty="You haven't listed any properties yet."
-          to="/dashboard/listings"
-          items={myListings.data?.slice(0, 4)?.map((l) => ({
-            id: l._id,
-            href: `/dashboard/listings/${l._id}/edit`,
-            title: l.title,
-            subtitle: LISTING_STATUS_LABELS[l.status],
-            badge: l.status,
-          }))}
+        <ViewingsBlock
+          title="Pending viewing requests"
+          items={pendingRequests.slice(0, 4)}
+          empty="No pending requests. Buyers will book from your availability."
+          side="owner"
         />
-        <RecentBlock
-          title="Recent offers received"
-          empty="No offers yet — once your listings are active, offers show up here."
-          to="/dashboard/offers"
-          items={receivedOffers.data?.slice(0, 4)?.map((o) => ({
-            id: o._id,
-            href: `/dashboard/offers/${o._id}`,
-            title: o.listing?.title,
-            subtitle: `Offer: RM ${o.currentAmount?.toLocaleString()}`,
-            badge: o.status,
-          }))}
-        />
+        <RecentListingsBlock items={myListings?.slice(0, 4)} />
       </div>
+    </>
+  );
+}
+
+function SellerEnrollmentBanner() {
+  return (
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex flex-col sm:flex-row gap-4 sm:items-center">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+        <Store className="h-5 w-5" />
+      </div>
+      <div className="flex-1">
+        <div className="font-semibold flex items-center gap-1.5">
+          <Sparkles className="h-4 w-4 text-primary" />
+          Have a property to list?
+        </div>
+        <p className="text-sm opacity-85 mt-0.5">
+          Enroll as a lister in 30 seconds to post properties, set viewing hours, and handle
+          offers — all direct with buyers.
+        </p>
+      </div>
+      <Button asChild>
+        <Link to="/dashboard/seller/enroll">Become a lister</Link>
+      </Button>
     </div>
   );
 }
 
-// Tone -> static Tailwind classes. We can't interpolate the tone into the
-// class string at runtime because Tailwind's JIT only scans literal strings.
 const KYC_BANNER_TONES = {
-  warning: {
-    wrapper: 'border-warning/30 bg-warning-bg',
-    iconWrap: 'bg-warning/15 text-warning',
-  },
-  info: {
-    wrapper: 'border-info/30 bg-info-bg',
-    iconWrap: 'bg-info/15 text-info',
-  },
+  warning: { wrapper: 'border-warning/30 bg-warning-bg', iconWrap: 'bg-warning/15 text-warning' },
+  info: { wrapper: 'border-info/30 bg-info-bg', iconWrap: 'bg-info/15 text-info' },
   destructive: {
     wrapper: 'border-destructive/30 bg-destructive/10',
     iconWrap: 'bg-destructive/15 text-destructive',
@@ -176,11 +301,11 @@ function KycBanner({ status }) {
   );
 }
 
-function Stat({ icon: Icon, label, value, href }) {
+function Stat({ icon: Icon, label, value, href, badge }) {
   return (
     <Link
       to={href}
-      className="group rounded-2xl border border-sectionBorder bg-card p-5 hover:border-primary transition-colors"
+      className="group relative rounded-2xl border border-sectionBorder bg-card p-5 hover:border-primary transition-colors"
     >
       <div className="flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -191,31 +316,120 @@ function Stat({ icon: Icon, label, value, href }) {
           <div className="text-2xl font-heading font-bold">{value}</div>
         </div>
       </div>
+      {badge > 0 && (
+        <span className="absolute right-3 top-3 grid min-w-[22px] h-[22px] place-items-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </Link>
   );
 }
 
-function RecentBlock({ title, items, empty, to }) {
+function ViewingsBlock({ title, items, empty, side }) {
   return (
     <div className="rounded-2xl border border-sectionBorder bg-card p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold font-heading">{title}</h3>
-        <Link to={to} className="text-xs text-primary hover:underline">See all</Link>
+        <Link to="/dashboard/viewings" className="text-xs text-primary hover:underline">
+          See all
+        </Link>
       </div>
       {!items?.length ? (
         <p className="text-sm text-muted-foreground py-6 text-center">{empty}</p>
       ) : (
         <ul className="divide-y divide-sectionBorder">
-          {items.map((it) => (
-            <li key={it.id}>
-              <Link to={it.href} className="flex items-center justify-between gap-3 py-3 hover:text-primary">
+          {items.map((v) => (
+            <li key={v._id}>
+              <Link
+                to={`/dashboard/viewings/${v._id}`}
+                className="flex items-center justify-between gap-3 py-3 hover:text-primary"
+              >
                 <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{it.title}</div>
-                  <div className="text-xs text-muted-foreground">{it.subtitle}</div>
+                  <div className="text-sm font-medium truncate">
+                    {v.listing?.title || 'Listing'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatInZone(v.startAt, v.timezone)}{' '}
+                    {side === 'owner' ? `· ${v.buyer?.name || ''}` : ''}
+                  </div>
                 </div>
-                {it.badge && (
-                  <Badge variant={badgeForStatus(it.badge)}>{LISTING_STATUS_LABELS[it.badge] || it.badge}</Badge>
-                )}
+                <Badge variant={VIEWING_STATUS_VARIANTS[v.status] || 'outline'}>
+                  {VIEWING_STATUS_LABELS[v.status] || v.status}
+                </Badge>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function RecentListingsBlock({ items }) {
+  return (
+    <div className="rounded-2xl border border-sectionBorder bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold font-heading">Your recent listings</h3>
+        <Link to="/dashboard/listings" className="text-xs text-primary hover:underline">
+          See all
+        </Link>
+      </div>
+      {!items?.length ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          You haven&apos;t listed any properties yet.
+        </p>
+      ) : (
+        <ul className="divide-y divide-sectionBorder">
+          {items.map((l) => (
+            <li key={l._id}>
+              <Link
+                to={`/dashboard/listings/${l._id}/edit`}
+                className="flex items-center justify-between gap-3 py-3 hover:text-primary"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{l.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {LISTING_STATUS_LABELS[l.status]}
+                  </div>
+                </div>
+                <Badge variant={badgeForStatus(l.status)}>
+                  {LISTING_STATUS_LABELS[l.status] || l.status}
+                </Badge>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function RecentOffersBlock({ title, items }) {
+  return (
+    <div className="rounded-2xl border border-sectionBorder bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold font-heading">{title}</h3>
+        <Link to="/dashboard/offers" className="text-xs text-primary hover:underline">
+          See all
+        </Link>
+      </div>
+      {!items?.length ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">No offers yet.</p>
+      ) : (
+        <ul className="divide-y divide-sectionBorder">
+          {items.map((o) => (
+            <li key={o._id}>
+              <Link
+                to={`/dashboard/offers/${o._id}`}
+                className="flex items-center justify-between gap-3 py-3 hover:text-primary"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{o.listing?.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    RM {o.currentAmount?.toLocaleString()}
+                  </div>
+                </div>
+                <Badge variant={badgeForStatus(o.status)}>{o.status}</Badge>
               </Link>
             </li>
           ))}
@@ -226,9 +440,9 @@ function RecentBlock({ title, items, empty, to }) {
 }
 
 function badgeForStatus(s) {
-  if (s === 'active') return 'success';
-  if (s === 'pending') return 'warning';
-  if (s === 'rejected') return 'destructive';
-  if (s === 'sold' || s === 'rented') return 'info';
+  if (s === 'active' || s === 'accepted') return 'success';
+  if (s === 'pending' || s === 'requested') return 'warning';
+  if (s === 'rejected' || s === 'declined') return 'destructive';
+  if (s === 'sold' || s === 'rented' || s === 'countered' || s === 'counter_proposed') return 'info';
   return 'outline';
 }

@@ -60,6 +60,55 @@ export const KYC_STATUS_LABELS = {
   rejected: 'Rejected',
 };
 
+// Labels for viewing lifecycle states. Keep values in sync with the enum
+// on backend/src/models/Viewing.js.
+export const VIEWING_STATUS_LABELS = {
+  requested: 'Requested',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  counter_proposed: 'Counter proposed',
+  cancelled: 'Cancelled',
+  completed: 'Completed',
+  no_show: 'No show',
+  expired: 'Expired',
+};
+
+// Maps status -> Badge variant name so the inbox/detail views render a
+// consistent color language.
+export const VIEWING_STATUS_VARIANTS = {
+  requested: 'warning',
+  accepted: 'success',
+  declined: 'destructive',
+  counter_proposed: 'info',
+  cancelled: 'outline',
+  completed: 'info',
+  no_show: 'destructive',
+  expired: 'outline',
+};
+
+export const WEEKDAY_LABELS = [
+  { value: 0, short: 'Sun', long: 'Sunday' },
+  { value: 1, short: 'Mon', long: 'Monday' },
+  { value: 2, short: 'Tue', long: 'Tuesday' },
+  { value: 3, short: 'Wed', long: 'Wednesday' },
+  { value: 4, short: 'Thu', long: 'Thursday' },
+  { value: 5, short: 'Fri', long: 'Friday' },
+  { value: 6, short: 'Sat', long: 'Saturday' },
+];
+
+// Common IANA zones surfaced in the availability editor. Covers the primary
+// markets noBrokers serves today plus a generic UTC fallback.
+export const SUPPORTED_TIMEZONES = [
+  { value: 'Asia/Kuala_Lumpur', label: 'Kuala Lumpur (UTC+8)' },
+  { value: 'Asia/Singapore', label: 'Singapore (UTC+8)' },
+  { value: 'Asia/Jakarta', label: 'Jakarta (UTC+7)' },
+  { value: 'Asia/Bangkok', label: 'Bangkok (UTC+7)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (UTC+8)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
+  { value: 'Australia/Sydney', label: 'Sydney (UTC+10/+11)' },
+  { value: 'UTC', label: 'UTC' },
+];
+
 export const COMMON_AMENITIES = [
   'Pool',
   'Gym',

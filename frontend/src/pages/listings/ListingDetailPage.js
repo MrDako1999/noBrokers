@@ -14,6 +14,8 @@ import {
   Tag,
   Sofa,
   CheckCircle2,
+  CalendarClock,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,20 +31,52 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { formatPrice, formatRent, formatPsf, timeAgo } from '@/lib/format';
 import api from '@/lib/api';
 import useAuthStore from '@/stores/authStore';
 import { LISTING_STATUS_LABELS } from '@/lib/constants';
+import SlotPicker from '@/components/SlotPicker';
+import useChatStore from '@/stores/chatStore';
 
 export default function ListingDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const openChatForListing = useChatStore((s) => s.openForListing);
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeImage, setActiveImage] = useState(0);
   const [offerOpen, setOfferOpen] = useState(false);
+  const [viewingOpen, setViewingOpen] = useState(false);
+  const [chatOpening, setChatOpening] = useState(false);
+
+  const handleOpenChat = async () => {
+    if (!user) {
+      const next = encodeURIComponent(`/listings/${id}`);
+      navigate(`/login?next=${next}`);
+      return;
+    }
+    setChatOpening(true);
+    try {
+      await openChatForListing(id);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not open chat',
+        description: err.response?.data?.error || 'Please try again.',
+      });
+    } finally {
+      setChatOpening(false);
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['listing', id],
@@ -81,6 +115,34 @@ export default function ListingDetailPage() {
       toast({
         variant: 'destructive',
         title: 'Could not send offer',
+        description: err.response?.data?.error || 'Please try again.',
+      });
+    },
+  });
+
+  const viewingMutation = useMutation({
+    mutationFn: async ({ slot, mode, notes }) => {
+      const { data } = await api.post('/viewings', {
+        listingId: id,
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        mode,
+        notes,
+      });
+      return data.viewing;
+    },
+    onSuccess: (viewing) => {
+      setViewingOpen(false);
+      toast({
+        title: 'Viewing requested',
+        description: 'The owner will accept, reschedule or decline shortly.',
+      });
+      navigate(`/dashboard/viewings/${viewing._id}`);
+    },
+    onError: (err) => {
+      toast({
+        variant: 'destructive',
+        title: 'Could not request viewing',
         description: err.response?.data?.error || 'Please try again.',
       });
     },
@@ -222,22 +284,55 @@ export default function ListingDetailPage() {
               ) : (
                 <>
                   {user ? (
-                    <Dialog open={offerOpen} onOpenChange={setOfferOpen}>
-                      <DialogTrigger asChild>
-                        <Button size="lg" disabled={listing.status !== 'active'}>
-                          Make an offer
-                        </Button>
-                      </DialogTrigger>
-                      <OfferDialog
-                        listing={listing}
-                        submitting={offerMutation.isPending}
-                        onSubmit={(values) => offerMutation.mutate(values)}
-                      />
-                    </Dialog>
+                    <>
+                      <Button
+                        size="lg"
+                        onClick={handleOpenChat}
+                        disabled={chatOpening}
+                      >
+                        {chatOpening ? (
+                          <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                        ) : (
+                          <MessageCircle className="h-4 w-4 mr-1.5" />
+                        )}
+                        Chat with owner
+                      </Button>
+                      <Dialog open={viewingOpen} onOpenChange={setViewingOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="lg" disabled={listing.status !== 'active'}>
+                            <CalendarClock className="h-4 w-4 mr-1.5" />
+                            Request a viewing
+                          </Button>
+                        </DialogTrigger>
+                        <ViewingDialog
+                          listingId={listing._id}
+                          submitting={viewingMutation.isPending}
+                          onSubmit={(values) => viewingMutation.mutate(values)}
+                        />
+                      </Dialog>
+                      <Dialog open={offerOpen} onOpenChange={setOfferOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="lg" disabled={listing.status !== 'active'}>
+                            Make an offer
+                          </Button>
+                        </DialogTrigger>
+                        <OfferDialog
+                          listing={listing}
+                          submitting={offerMutation.isPending}
+                          onSubmit={(values) => offerMutation.mutate(values)}
+                        />
+                      </Dialog>
+                    </>
                   ) : (
-                    <Button asChild size="lg">
-                      <Link to="/login">Sign in to offer</Link>
-                    </Button>
+                    <>
+                      <Button size="lg" onClick={handleOpenChat}>
+                        <MessageCircle className="h-4 w-4 mr-1.5" />
+                        Chat with owner
+                      </Button>
+                      <Button asChild variant="outline" size="lg">
+                        <Link to="/login">Sign in to book a viewing</Link>
+                      </Button>
+                    </>
                   )}
                   <Button
                     variant="outline"
@@ -306,6 +401,65 @@ function Detail({ icon: Icon, label, value }) {
       </div>
       <div className="mt-0.5 capitalize">{value || '—'}</div>
     </div>
+  );
+}
+
+function ViewingDialog({ listingId, submitting, onSubmit }) {
+  const [slot, setSlot] = useState(null);
+  const [mode, setMode] = useState('in_person');
+  const [notes, setNotes] = useState('');
+
+  return (
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Request a viewing</DialogTitle>
+        <DialogDescription>
+          Pick a time from the owner&apos;s open availability. They&apos;ll confirm or reschedule.
+        </DialogDescription>
+      </DialogHeader>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!slot) return;
+          onSubmit({ slot, mode, notes });
+        }}
+        className="space-y-4"
+      >
+        <SlotPicker listingId={listingId} selected={slot} onSelect={setSlot} />
+
+        <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
+          <div className="space-y-1.5">
+            <Label htmlFor="mode">Mode</Label>
+            <Select value={mode} onValueChange={setMode}>
+              <SelectTrigger id="mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="in_person">In person</SelectItem>
+                <SelectItem value="virtual">Virtual tour</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="notes">Note to owner (optional)</Label>
+            <Input
+              id="notes"
+              maxLength={500}
+              placeholder="Mention anything the owner should know before the viewing."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="submit" disabled={submitting || !slot}>
+            {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+            Send request
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }
 

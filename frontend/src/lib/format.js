@@ -69,6 +69,52 @@ export function formatDate(d) {
   });
 }
 
+export function formatDateTime(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-MY', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// Format a date in a specific IANA timezone. Used on the viewing timeline
+// where we want to show "Mon, May 4, 2:00pm (Asia/Kuala_Lumpur)" so both
+// parties see the same intent even if their devices live in different zones.
+export function formatInZone(d, tz) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleString('en-MY', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: tz || undefined,
+    });
+  } catch {
+    return formatDateTime(d);
+  }
+}
+
+// Convert "630" (minutes since midnight) -> "10:30".
+export function formatMinuteOfDay(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// Parse "10:30" -> 630. Returns null for invalid input.
+export function parseMinuteOfDay(str) {
+  if (!str) return null;
+  const [h, m] = String(str).split(':').map((n) => Number(n));
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  if (h < 0 || h > 24 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
 export function timeAgo(d) {
   if (!d) return '';
   const seconds = Math.floor((Date.now() - new Date(d).getTime()) / 1000);

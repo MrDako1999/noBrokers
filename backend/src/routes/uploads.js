@@ -7,8 +7,9 @@ const { getR2Client, getBucket, publicUrlFor } = require('../config/r2.js')
 
 const router = express.Router()
 
-const ALLOWED_KINDS = new Set(['listing-image', 'kyc-doc', 'ownership-doc'])
+const ALLOWED_KINDS = new Set(['listing-image', 'kyc-doc', 'ownership-doc', 'chat-attachment'])
 
+// Default MIME allowlist (KYC docs / listing images / ownership docs).
 const ALLOWED_MIME = new Set([
   'image/jpeg',
   'image/png',
@@ -16,6 +17,27 @@ const ALLOWED_MIME = new Set([
   'image/avif',
   'image/heic',
   'application/pdf',
+])
+
+// Chat allows a richer set — voice notes, short videos, common Office docs.
+// Still capped to MAX_BYTES total. Kept as a separate set so we don't widen
+// the listing/KYC surface accidentally.
+const CHAT_ALLOWED_MIME = new Set([
+  ...ALLOWED_MIME,
+  'image/gif',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/webm',
+  'audio/ogg',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+  'text/csv',
 ])
 
 const MAX_BYTES = 15 * 1024 * 1024 // 15MB hard cap, the presign also enforces this.
@@ -32,8 +54,36 @@ function extFromMime(mime) {
       return 'avif'
     case 'image/heic':
       return 'heic'
+    case 'image/gif':
+      return 'gif'
     case 'application/pdf':
       return 'pdf'
+    case 'video/mp4':
+      return 'mp4'
+    case 'video/webm':
+      return 'webm'
+    case 'video/quicktime':
+      return 'mov'
+    case 'audio/mpeg':
+      return 'mp3'
+    case 'audio/mp4':
+      return 'm4a'
+    case 'audio/webm':
+      return 'weba'
+    case 'audio/ogg':
+      return 'ogg'
+    case 'application/msword':
+      return 'doc'
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+      return 'docx'
+    case 'application/vnd.ms-excel':
+      return 'xls'
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+      return 'xlsx'
+    case 'text/plain':
+      return 'txt'
+    case 'text/csv':
+      return 'csv'
     default:
       return 'bin'
   }
@@ -58,7 +108,8 @@ router.post('/presign', auth, async (req, res, next) => {
     if (!ALLOWED_KINDS.has(kind)) {
       return res.status(400).json({ error: 'Invalid upload kind' })
     }
-    if (!ALLOWED_MIME.has(contentType)) {
+    const mimeAllowed = kind === 'chat-attachment' ? CHAT_ALLOWED_MIME : ALLOWED_MIME
+    if (!mimeAllowed.has(contentType)) {
       return res.status(400).json({ error: 'Unsupported file type' })
     }
 
@@ -67,7 +118,13 @@ router.post('/presign', auth, async (req, res, next) => {
     // Folder per kind, scoped under the user's id so an admin sweep of one
     // user's uploads is a single prefix listing.
     const folder =
-      kind === 'listing-image' ? 'listings' : kind === 'kyc-doc' ? 'kyc' : 'ownership'
+      kind === 'listing-image'
+        ? 'listings'
+        : kind === 'kyc-doc'
+          ? 'kyc'
+          : kind === 'chat-attachment'
+            ? 'chat'
+            : 'ownership'
     const key = `${folder}/${req.user._id}/${Date.now()}-${id}.${ext}`
 
     const command = new PutObjectCommand({

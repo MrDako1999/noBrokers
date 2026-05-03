@@ -66,8 +66,29 @@ const userSchema = new mongoose.Schema(
       rejectionReason: String,
       documents: { type: [kycDocSchema], default: [] },
     },
+    // Seller enrollment. Everyone starts as a viewer/buyer; flipping
+    // `enrolled` to true is a deliberate opt-in that gates listing creation
+    // and the seller-side dashboard. Keeping it separate from `accountTypes`
+    // (which is self-reported) so we have an auditable authz flag.
+    sellerProfile: {
+      enrolled: { type: Boolean, default: false },
+      enrolledAt: Date,
+      termsAcceptedVersion: { type: String, default: '' },
+      termsAcceptedAt: Date,
+    },
+    // Cross-device UX preferences. Kept server-side so the buyer/seller
+    // switcher survives a fresh login on another device.
+    preferences: {
+      lastMode: { type: String, enum: ['buyer', 'seller'], default: 'buyer' },
+      timezone: { type: String, default: 'Asia/Kuala_Lumpur' },
+    },
     resetPasswordToken: String,
     resetPasswordExpires: Date,
+
+    // Best-effort presence timestamp. Bumped from the chat widget's
+    // heartbeat. Used to render "last seen 2m ago" when Pusher presence
+    // says the counterpart is offline.
+    lastSeenAt: { type: Date, default: null },
   },
   { timestamps: true },
 )

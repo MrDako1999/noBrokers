@@ -39,6 +39,15 @@ const useAuthStore = create((set, get) => ({
   logout: () => {
     localStorage.removeItem('nb-token');
     set({ user: null });
+    // Tear down the chat widget's Pusher subscriptions + cached inbox.
+    // Soft-imported to avoid a cyclic dep at module-load time (chatStore
+    // imports the API client, which transitively pulls in authStore in
+    // some build orderings).
+    import('@/stores/chatStore')
+      .then((m) => m.default.getState().reset())
+      .catch(() => {
+        /* no-op */
+      });
   },
 
   refreshUser: async () => {
