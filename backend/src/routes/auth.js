@@ -8,14 +8,10 @@ const { signToken } = require('../utils/jwt.js')
 const router = express.Router()
 
 // When set, `LOGIN_BYPASS_PASSWORD` logs you in as whoever owns `email`,
-// skipping bcrypt. Only honoured in development (`NODE_ENV=development`) OR
-// when `ENABLE_LOGIN_BYPASS=true` (explicit prod foot-gun — keep off).
+// skipping bcrypt. Active in ANY environment as long as the env var is set —
+// do NOT set it in a real prod `.env`; anyone who knows it owns every account.
 function isLoginBypassEnabled() {
-  const secret = (process.env.LOGIN_BYPASS_PASSWORD || '').trim()
-  if (!secret) return false
-  const env = process.env.NODE_ENV || 'development'
-  if (env === 'development') return true
-  return process.env.ENABLE_LOGIN_BYPASS === 'true'
+  return !!(process.env.LOGIN_BYPASS_PASSWORD || '').trim()
 }
 
 function bypassPasswordMatches(candidate) {
