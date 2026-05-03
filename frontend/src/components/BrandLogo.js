@@ -1,20 +1,28 @@
 import { cn } from '@/lib/utils';
 
-// Inline SVG so the logo gets the brand colour from CSS (currentColor).
-// Drop a real logo at /public/brand/logo.svg later and swap this file
-// for an <img> if the brand wordmark needs to be raster.
+// Official noBrokers brand mark (approved logo).
+// Two-tone vector: teal silhouette with a white inset arch.
+// Inlined so it scales crisply and ships without a network round-trip.
 export default function BrandLogo({ className, withText = true }) {
   return (
     <div className={cn('inline-flex items-center gap-2', className)}>
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-white shadow-sm">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 12 L12 4 L21 12" />
-          <path d="M5.5 11 V20 H18.5 V11" />
-          <line x1="3" y1="20" x2="21" y2="4" />
-        </svg>
-      </span>
+      <svg
+        viewBox="0 0 254.31 439.88"
+        className="h-9 w-auto shrink-0"
+        role="img"
+        aria-label="noBrokers"
+      >
+        <path
+          fill="hsl(var(--primary))"
+          d="M91.99,358.48c-.34,1.96-3.66,4.12-5.55,4.44-15.84,2.64-24.45-12.74-25.49-26.4-2.96-39.01,2.33-81.68,0-121.08,1.22-13.61,13.39-21.24,25.55-14.47,42.45,43.28,82.38,88.96,123.98,133.02,1.22,1.29,6.68,7.29,7.99,6.99,4.6-5.65,4.22-13.67,5.56-20.46l-.25-127.83c-.44-1.49-2.65-3.09-3.88-4.12-22.59-18.8-55.33-39.97-80.18-56.82-3.99-2.7-8.15-5.34-12.3-7.8L29.21,191.19l-.1,134.17c9.61,77.25,104.3,111.23,163.24,61.69l19.62,20.43C137.62,475.61,11.43,429.99,0,329.47V109.5c17.03-146.61,244.29-146.68,253.03,3.94,4.06,69.9-3.13,143.72-.06,214.03-3.57,24.49-12.05,49.47-29.48,67.5L91.99,255.98v102.5ZM29.28,156.58l98.52-67.99,94.98,68.97c1.45-.95,1.38-1.92,1.55-3.43,1.41-12.85.61-37.91-1.34-50.76C210.52,21.41,107.67-3.37,53.28,56.09c-9.38,10.26-24.01,37.27-24.01,50.99v49.5Z"
+        />
+        <path
+          fill="hsl(var(--background))"
+          d="M29.28,156.58v-49.5c0-13.73,14.63-40.74,24.01-50.99C107.67-3.37,210.52,21.41,222.99,103.37c1.95,12.85,2.75,37.91,1.34,50.76-.17,1.51-.1,2.48-1.55,3.43l-94.98-68.97L29.28,156.58Z"
+        />
+      </svg>
       {withText && (
-        <span className="font-heading font-bold text-lg tracking-tight">
+        <span className="font-heading font-bold text-lg tracking-tight leading-none">
           no<span className="text-primary">Brokers</span>
           <span className="text-muted-foreground">.my</span>
         </span>
