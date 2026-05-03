@@ -92,7 +92,7 @@ export default function CalendarPage() {
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button asChild size="sm">
-            <Link to="/dashboard/seller/availability">
+            <Link to="/dashboard/settings/availability">
               <Clock4 className="h-4 w-4 mr-1.5" />
               Availability
             </Link>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Loader2, CalendarX2, Clock4 } from 'lucide-react';
+import { Plus, Trash2, Loader2, CalendarX2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,7 +45,7 @@ function fromRule(rule) {
   };
 }
 
-export default function AvailabilityPage() {
+export default function AvailabilityTab() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [rows, setRows] = useState([]);
@@ -104,17 +104,11 @@ export default function AvailabilityPage() {
   const removeRow = (id) => setRows((prev) => prev.filter((r) => r.id !== id));
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight inline-flex items-center gap-2">
-          <Clock4 className="h-6 w-6 text-primary" />
-          Viewing availability
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Set the weekly hours when buyers can request a viewing. They&apos;ll only see slots
-          inside these windows; you still accept or reschedule every request.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Set the weekly hours when buyers can request a viewing. They&apos;ll only see slots
+        inside these windows; you still accept or reschedule every request.
+      </p>
 
       <Card>
         <CardHeader>

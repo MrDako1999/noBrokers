@@ -5,11 +5,9 @@ import {
   Home,
   MessageSquare,
   MessageCircle,
-  ShieldCheck,
-  User,
+  Settings,
   CalendarClock,
   CalendarDays,
-  Clock4,
   Sparkles,
   Search,
 } from 'lucide-react';
@@ -20,8 +18,8 @@ import useModeStore from '@/stores/modeStore';
 import useChatStore from '@/stores/chatStore';
 import { cn } from '@/lib/utils';
 
-// Buyer/tenant-facing navigation. Viewer-KYC lives here because every user
-// is a viewer by default; seller-specific verification would be additional.
+// Buyer/tenant-facing navigation. Profile, password, and KYC live behind
+// the unified Settings entry — every user gets the same Settings hub.
 const BUYER_LINKS = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/buy', label: 'Browse', icon: Search },
@@ -29,12 +27,12 @@ const BUYER_LINKS = [
   { to: '/dashboard/messages', label: 'Messages', icon: MessageCircle, badge: 'chatUnread' },
   { to: '/dashboard/offers', label: 'Offers sent', icon: MessageSquare },
   { to: '/dashboard/viewings', label: 'My viewings', icon: CalendarClock },
-  { to: '/dashboard/verification', label: 'Verification (KYC)', icon: ShieldCheck },
-  { to: '/dashboard/profile', label: 'Profile', icon: User },
+  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
 // Seller-side navigation. Only shown when the user's mode is 'seller' and
 // `sellerProfile.enrolled` is true (the switcher enforces the latter).
+// Availability is a sub-tab inside Settings rather than a top-level link.
 const SELLER_LINKS = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/dashboard/listings', label: 'My listings', icon: Home },
@@ -42,9 +40,7 @@ const SELLER_LINKS = [
   { to: '/dashboard/offers', label: 'Offers received', icon: MessageSquare },
   { to: '/dashboard/viewings', label: 'Viewing requests', icon: CalendarClock },
   { to: '/dashboard/seller/calendar', label: 'Calendar', icon: CalendarDays },
-  { to: '/dashboard/seller/availability', label: 'Availability', icon: Clock4 },
-  { to: '/dashboard/verification', label: 'Verification (KYC)', icon: ShieldCheck },
-  { to: '/dashboard/profile', label: 'Profile', icon: User },
+  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AppLayout() {

@@ -199,7 +199,7 @@ function SellerOverview({ myListings, receivedOffers, ownerViewings, chatCount, 
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-              <Link to="/dashboard/seller/availability">Set availability</Link>
+              <Link to="/dashboard/settings/availability">Set availability</Link>
             </Button>
             <Button asChild>
               <Link to="/dashboard/listings/new">
@@ -295,7 +295,7 @@ function KycBanner({ status }) {
         <p className="text-sm opacity-80 mt-0.5">{config.body}</p>
       </div>
       <Button asChild variant="default" size="sm">
-        <Link to="/dashboard/verification">{config.cta}</Link>
+        <Link to="/dashboard/settings/verification">{config.cta}</Link>
       </Button>
     </div>
   );

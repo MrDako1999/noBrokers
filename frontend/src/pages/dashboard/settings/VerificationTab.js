@@ -19,7 +19,7 @@ const KYC_DOC_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-export default function VerificationPage() {
+export default function VerificationTab() {
   const queryClient = useQueryClient();
   const { user, refreshUser } = useAuthStore();
   const { toast } = useToast();
@@ -58,13 +58,10 @@ export default function VerificationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">KYC verification</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Verified users have a green badge on every listing they post and offer they make. We&apos;ll integrate
-          MyDigitalID later — for now an admin reviews submissions manually.
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Verified users have a green badge on every listing they post and offer they make.
+        We&apos;ll integrate MyDigitalID later — for now an admin reviews submissions manually.
+      </p>
 
       <StatusCard status={status} data={data} />
 

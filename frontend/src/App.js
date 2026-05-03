@@ -30,10 +30,12 @@ import WatchlistPage from '@/pages/dashboard/WatchlistPage';
 import OffersPage from '@/pages/dashboard/OffersPage';
 import OfferDetailPage from '@/pages/dashboard/OfferDetailPage';
 import MessagesPage from '@/pages/dashboard/MessagesPage';
-import VerificationPage from '@/pages/dashboard/VerificationPage';
-import ProfilePage from '@/pages/dashboard/ProfilePage';
+import SettingsLayout from '@/pages/dashboard/settings/SettingsLayout';
+import ProfileTab from '@/pages/dashboard/settings/ProfileTab';
+import SecurityTab from '@/pages/dashboard/settings/SecurityTab';
+import VerificationTab from '@/pages/dashboard/settings/VerificationTab';
+import AvailabilityTab from '@/pages/dashboard/settings/AvailabilityTab';
 import EnrollPage from '@/pages/dashboard/seller/EnrollPage';
-import AvailabilityPage from '@/pages/dashboard/seller/AvailabilityPage';
 import CalendarPage from '@/pages/dashboard/seller/CalendarPage';
 import ViewingsPage from '@/pages/dashboard/ViewingsPage';
 import ViewingDetailPage from '@/pages/dashboard/ViewingDetailPage';
@@ -130,8 +132,31 @@ export default function App() {
           <Route path="/dashboard/messages/:id" element={<MessagesPage />} />
           <Route path="/dashboard/viewings" element={<ViewingsPage />} />
           <Route path="/dashboard/viewings/:id" element={<ViewingDetailPage />} />
-          <Route path="/dashboard/verification" element={<VerificationPage />} />
-          <Route path="/dashboard/profile" element={<ProfilePage />} />
+
+          {/* Settings hub: profile, password, KYC, (seller) availability. */}
+          <Route path="/dashboard/settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="profile" replace />} />
+            <Route path="profile" element={<ProfileTab />} />
+            <Route path="security" element={<SecurityTab />} />
+            <Route path="verification" element={<VerificationTab />} />
+            <Route
+              path="availability"
+              element={
+                <SellerRoute>
+                  <AvailabilityTab />
+                </SellerRoute>
+              }
+            />
+          </Route>
+
+          {/* Back-compat redirects for the pre-Settings URL scheme. */}
+          <Route path="/dashboard/profile" element={<Navigate to="/dashboard/settings/profile" replace />} />
+          <Route path="/dashboard/verification" element={<Navigate to="/dashboard/settings/verification" replace />} />
+          <Route
+            path="/dashboard/seller/availability"
+            element={<Navigate to="/dashboard/settings/availability" replace />}
+          />
+
           {/* Seller enrollment funnel — authed but not seller-gated. */}
           <Route path="/dashboard/seller/enroll" element={<EnrollPage />} />
 
@@ -140,7 +165,6 @@ export default function App() {
             <Route path="/dashboard/listings" element={<MyListingsPage />} />
             <Route path="/dashboard/listings/new" element={<CreateListingPage />} />
             <Route path="/dashboard/listings/:id/edit" element={<EditListingPage />} />
-            <Route path="/dashboard/seller/availability" element={<AvailabilityPage />} />
             <Route path="/dashboard/seller/calendar" element={<CalendarPage />} />
           </Route>
         </Route>

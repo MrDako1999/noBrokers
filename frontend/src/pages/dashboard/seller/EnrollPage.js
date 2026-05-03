@@ -86,7 +86,7 @@ export default function EnrollPage() {
               <Link to="/dashboard/listings/new">Create a listing</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/dashboard/seller/availability">Set availability</Link>
+              <Link to="/dashboard/settings/availability">Set availability</Link>
             </Button>
           </CardContent>
         </Card>
@@ -159,7 +159,7 @@ export default function EnrollPage() {
               <div className="flex items-center justify-between gap-3 pt-2">
                 <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  You can revert to buyer-only anytime from your profile.
+                  You can revert to buyer-only anytime from your settings.
                 </div>
                 <Button onClick={submit} disabled={!accepted || submitting}>
                   {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
