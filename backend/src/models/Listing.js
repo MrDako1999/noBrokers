@@ -14,7 +14,20 @@ const ownershipDocSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['title_deed', 'spa', 'utility_bill', 'quit_rent', 'strata', 'other'],
+      enum: [
+        // Current set surfaced in the UI.
+        'title_deed',
+        'assessment_tax',
+        'land_tax',
+        'spa_front',
+        'spa_schedule',
+        'other',
+        // Legacy values kept so historic listings still validate.
+        'spa',
+        'utility_bill',
+        'quit_rent',
+        'strata',
+      ],
       required: true,
     },
     url: { type: String, required: true },

@@ -22,7 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import api from '@/lib/api';
-import { LISTING_STATUS_LABELS } from '@/lib/constants';
+import { LISTING_STATUS_LABELS, OWNERSHIP_DOC_LABELS } from '@/lib/constants';
 import { formatPrice, formatRent, timeAgo } from '@/lib/format';
 
 export default function AdminListingsPage() {
@@ -153,7 +153,9 @@ export default function AdminListingsPage() {
               {reviewing.verification.documents.map((d, i) => (
                 <li key={d.key || i} className="rounded-xl border border-sectionBorder p-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-medium text-sm capitalize">{d.type?.replace(/_/g, ' ')}</div>
+                    <div className="font-medium text-sm">
+                      {OWNERSHIP_DOC_LABELS[d.type] || d.type?.replace(/_/g, ' ')}
+                    </div>
                     <a href={d.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate">
                       {d.url}
                     </a>

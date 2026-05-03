@@ -74,10 +74,6 @@ router.post('/presign', auth, async (req, res, next) => {
       Bucket: getBucket(),
       Key: key,
       ContentType: contentType,
-      // R2 ignores ContentLength on presigned PUT but we keep it for
-      // documentation; the real cap is enforced in front of upload by
-      // the Vite-side input.
-      ContentLength: undefined,
     })
 
     const uploadUrl = await getSignedUrl(getR2Client(), command, { expiresIn: 60 * 5 })

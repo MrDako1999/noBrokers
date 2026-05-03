@@ -11,23 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import MultiImageUpload, { MultiDocumentUpload } from '@/components/MultiImageUpload';
+import FileUploader from '@/components/FileUploader';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import {
   PROPERTY_TYPES,
   FURNISHING_OPTIONS,
   COMMON_AMENITIES,
+  OWNERSHIP_DOC_TYPES,
 } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-
-const OWNERSHIP_DOC_TYPES = [
-  { value: 'title_deed', label: 'Title Deed (Geran)' },
-  { value: 'spa', label: 'SPA Document' },
-  { value: 'utility_bill', label: 'Utility Bill' },
-  { value: 'quit_rent', label: 'Quit Rent (Cukai Tanah)' },
-  { value: 'strata', label: 'Strata Title' },
-  { value: 'other', label: 'Other' },
-];
 
 const empty = {
   title: '',
@@ -206,8 +198,18 @@ export default function ListingForm({ initial, onSubmit, submitting, mode = 'cre
         />
       </Section>
 
-      <Section title="Photos" subtitle="The first image is the cover. Drag-to-reorder coming soon.">
-        <MultiImageUpload value={form.images} onChange={(images) => update({ images })} />
+      <Section
+        title="Photos"
+        subtitle="The first image is the cover. Drag a photo to reorder, or use the arrow buttons."
+      >
+        <FileUploader
+          value={form.images}
+          onChange={(images) => update({ images })}
+          kind="listing-image"
+          variant="image-grid"
+          maxFiles={12}
+          helperText="Up to 12 images, max 15MB each. JPG, PNG, WEBP, AVIF, HEIC. The first image is the cover. Drop files here or click to add."
+        />
       </Section>
 
       <Section title="Amenities">
@@ -234,14 +236,18 @@ export default function ListingForm({ initial, onSubmit, submitting, mode = 'cre
       </Section>
 
       <Section
-        title="Ownership documents"
-        subtitle="Upload your title deed / SPA / utility bill so we can verify you really own this property. Your documents are private — only the admin sees them."
+        title="Ownership verification"
+        subtitle="Upload one or more of the documents below so we can verify you really own this property. Accepted: Title Deed, Assessment tax receipt, Land tax receipt, SPA front cover, SPA scheduled page. Your documents are private — only the admin sees them."
       >
-        <MultiDocumentUpload
+        <FileUploader
           value={form.ownershipDocuments}
           onChange={(ownershipDocuments) => update({ ownershipDocuments })}
           kind="ownership-doc"
+          variant="document-list"
           types={OWNERSHIP_DOC_TYPES}
+          maxFiles={10}
+          emptyLabel="Add ownership documents"
+          helperText="Tip: a Title Deed alone is enough. Add more documents (e.g. SPA pages, tax receipts) to speed up verification."
         />
       </Section>
 

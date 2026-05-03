@@ -20,6 +20,13 @@ function getR2Client() {
       accessKeyId: R2_ACCESS_KEY_ID,
       secretAccessKey: R2_SECRET_ACCESS_KEY,
     },
+    // AWS SDK v3 (>= 3.729) adds `x-amz-checksum-crc32` to the *signed*
+    // headers of presigned PUTs by default. The browser can't send that
+    // header on a plain XHR `PUT`, so R2 rejects the upload with a
+    // signature mismatch (403). Forcing WHEN_REQUIRED disables that
+    // default and presigned URLs work in the browser again.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   })
 
   return cachedClient

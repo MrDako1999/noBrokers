@@ -6,6 +6,7 @@ import api from '@/lib/api';
 // Returns { url, key } that the caller submits with the parent entity.
 export async function uploadFile(file, kind, onProgress) {
   if (!file) throw new Error('No file');
+  if (!kind) throw new Error('No upload kind');
 
   const { data } = await api.post('/uploads/presign', {
     contentType: file.type,
@@ -18,22 +19,29 @@ export async function uploadFile(file, kind, onProgress) {
     );
   }
 
-  // Use XHR (not axios) so we get an upload progress event without piping
-  // a presigned PUT through axios (which insists on adding its own headers).
+  // Use XHR (not axios) so we get a real upload-progress event without
+  // axios injecting its own headers into a presigned PUT.
   await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', data.uploadUrl);
     xhr.setRequestHeader('Content-Type', file.type);
+
     if (onProgress) {
       xhr.upload.addEventListener('progress', (ev) => {
         if (ev.lengthComputable) onProgress(ev.loaded / ev.total);
       });
     }
+
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed (${xhr.status})`));
+      else reject(new Error(`R2 upload failed: HTTP ${xhr.status}`));
     };
-    xhr.onerror = () => reject(new Error('Upload failed'));
+    xhr.onerror = () =>
+      reject(
+        new Error(
+          'R2 upload failed (network error). Check the bucket CORS policy.',
+        ),
+      );
     xhr.send(file);
   });
 

@@ -4,7 +4,7 @@ import { Loader2, ShieldCheck, ShieldAlert, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { MultiDocumentUpload } from '@/components/MultiImageUpload';
+import FileUploader from '@/components/FileUploader';
 import api from '@/lib/api';
 import useAuthStore from '@/stores/authStore';
 import { KYC_STATUS_LABELS } from '@/lib/constants';
@@ -76,7 +76,16 @@ export default function VerificationPage() {
               We need a government ID (IC or passport) and ideally a selfie holding your ID. PDFs and images both work.
             </p>
           </div>
-          <MultiDocumentUpload value={docs} onChange={setDocs} kind="kyc-doc" types={KYC_DOC_TYPES} />
+          <FileUploader
+            value={docs}
+            onChange={setDocs}
+            kind="kyc-doc"
+            variant="document-list"
+            types={KYC_DOC_TYPES}
+            maxFiles={6}
+            emptyLabel="Add KYC documents"
+            helperText="You can upload multiple files at once. Drag & drop or click to browse."
+          />
           <div className="flex justify-end">
             <Button disabled={!docs.length || submit.isPending} onClick={() => submit.mutate()}>
               {submit.isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}

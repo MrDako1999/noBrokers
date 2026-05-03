@@ -31,6 +31,28 @@ export const LISTING_STATUS_LABELS = {
   archived: 'Archived',
 };
 
+// Documents accepted as proof of ownership when listing a property.
+// Keep enum values in sync with `ownershipDocSchema` in backend/models/Listing.js.
+export const OWNERSHIP_DOC_TYPES = [
+  { value: 'title_deed', label: 'Title Deed' },
+  { value: 'assessment_tax', label: 'Assessment tax receipt' },
+  { value: 'land_tax', label: 'Land tax receipt' },
+  { value: 'spa_front', label: 'SPA front cover' },
+  { value: 'spa_schedule', label: 'SPA scheduled page' },
+  { value: 'other', label: 'Other' },
+];
+
+export const OWNERSHIP_DOC_LABELS = OWNERSHIP_DOC_TYPES.reduce(
+  (acc, t) => ({ ...acc, [t.value]: t.label }),
+  // Legacy values kept for documents uploaded before the type list changed.
+  {
+    spa: 'SPA Document',
+    utility_bill: 'Utility Bill',
+    quit_rent: 'Quit Rent (Cukai Tanah)',
+    strata: 'Strata Title',
+  },
+);
+
 export const KYC_STATUS_LABELS = {
   unverified: 'Not submitted',
   pending: 'Under review',
