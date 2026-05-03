@@ -2,107 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap } from '@react-google-maps/api';
 import { Loader2, MapPin } from 'lucide-react';
 import { MY_CENTER, useGoogleMaps } from '@/lib/googleMapsUtils';
-import useThemeStore from '@/stores/themeStore';
+import { useMapStyles } from '@/lib/mapStyles';
 import MarkerCluster from './MarkerCluster';
 import MarkerPopupCard from './MarkerPopupCard';
 import MultiUnitPopupCard from './MultiUnitPopupCard';
 import { findGroupContaining, groupListings } from './groupListings';
 
 const containerStyle = { width: '100%', height: '100%' };
-
-// Hide Google's default POI / transit / business icons — they look almost
-// identical to our orange price bubbles and create visual clutter that the
-// user mistakes for their own listings. Roads, water, and admin labels stay.
-const HIDE_POI_STYLES = [
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.attraction', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.medical', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.sports_complex', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.place_of_worship', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit.station', stylers: [{ visibility: 'off' }] },
-];
-
-// Dark-mode palette tuned to roughly match our slate-900 / muted backgrounds
-// so the map blends in instead of glowing white when the rest of the app is
-// in dark mode.
-const DARK_MAP_STYLES = [
-  { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  {
-    featureType: 'administrative',
-    elementType: 'geometry',
-    stylers: [{ color: '#334155' }],
-  },
-  {
-    featureType: 'administrative.country',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#cbd5f5' }],
-  },
-  {
-    featureType: 'administrative.land_parcel',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'administrative.locality',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#e2e8f0' }],
-  },
-  {
-    featureType: 'landscape',
-    elementType: 'geometry',
-    stylers: [{ color: '#1e293b' }],
-  },
-  {
-    featureType: 'landscape.natural',
-    elementType: 'geometry',
-    stylers: [{ color: '#1e293b' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#1f2937' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#94a3b8' }],
-  },
-  {
-    featureType: 'road.arterial',
-    elementType: 'geometry',
-    stylers: [{ color: '#273244' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'geometry',
-    stylers: [{ color: '#334155' }],
-  },
-  {
-    featureType: 'road.highway.controlled_access',
-    elementType: 'geometry',
-    stylers: [{ color: '#475569' }],
-  },
-  {
-    featureType: 'road.local',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#64748b' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#020617' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#475569' }],
-  },
-];
 
 const BASE_MAP_OPTIONS = {
   streetViewControl: false,
@@ -128,19 +34,13 @@ export default function ListingMap({
   children,
 }) {
   const { isLoaded, loadError, apiKey } = useGoogleMaps();
-  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const styles = useMapStyles({ hidePoi: true });
   const [map, setMap] = useState(null);
   const didFitRef = useRef(false);
 
   const mapOptions = useMemo(
-    () => ({
-      ...BASE_MAP_OPTIONS,
-      styles:
-        resolvedTheme === 'dark'
-          ? [...DARK_MAP_STYLES, ...HIDE_POI_STYLES]
-          : HIDE_POI_STYLES,
-    }),
-    [resolvedTheme],
+    () => ({ ...BASE_MAP_OPTIONS, styles }),
+    [styles],
   );
 
   const handleLoad = useCallback(

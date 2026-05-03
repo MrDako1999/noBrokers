@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap, MarkerF } from '@react-google-maps/api';
 import {
   Dialog,
@@ -26,6 +26,7 @@ import {
   ensurePacHidden,
   useGoogleMaps,
 } from '@/lib/googleMapsUtils';
+import { useMapStyles } from '@/lib/mapStyles';
 import { MY_STATES } from '@/lib/constants';
 
 const inlineMapStyle = {
@@ -120,6 +121,9 @@ function useReverseGeocoder(onChange) {
 function AddressMap({ lat, lng, onChange, containerStyle, expandButton }) {
   const [map, setMap] = useState(null);
   const reverseGeocode = useReverseGeocoder(onChange);
+  // POIs help users orient themselves when picking a property pin, so we keep
+  // them visible — only the dark palette is applied.
+  const styles = useMapStyles({ hidePoi: false });
 
   const center = lat != null && lng != null ? { lat, lng } : MY_CENTER;
   const hasPin = lat != null && lng != null;
@@ -148,6 +152,16 @@ function AddressMap({ lat, lng, onChange, containerStyle, expandButton }) {
     [reverseGeocode],
   );
 
+  const mapOptions = useMemo(
+    () => ({
+      streetViewControl: false,
+      mapTypeControl: false,
+      fullscreenControl: false,
+      styles,
+    }),
+    [styles],
+  );
+
   return (
     <div className="relative h-full overflow-hidden rounded-xl">
       {expandButton}
@@ -157,11 +171,7 @@ function AddressMap({ lat, lng, onChange, containerStyle, expandButton }) {
         zoom={hasPin ? 16 : 11}
         onLoad={handleLoad}
         onClick={handleMapClick}
-        options={{
-          streetViewControl: false,
-          mapTypeControl: false,
-          fullscreenControl: false,
-        }}
+        options={mapOptions}
       >
         {hasPin && (
           <MarkerF
